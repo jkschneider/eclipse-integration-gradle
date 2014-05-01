@@ -88,6 +88,10 @@ public abstract class GradleModelProvider {
 		return GradleCore.getInstance().getPreferences().getGradleUserHome();
 	}
 	
+	public static ProjectConnection getGradleConnector(File projectLoc) {
+		return getGradleConnector(projectLoc, getDistributionPref(), getGradleUserHomePref(), null);
+	}
+	
 	private static ProjectConnection getGradleConnector(File projectLoc, URI distributionPref, File gradleUserHomePref, IProgressMonitor monitor) {
 		if(monitor != null)
 			monitor.beginTask("Connection to Gradle", 1);
@@ -126,7 +130,8 @@ public abstract class GradleModelProvider {
 	 * actually set, then we try to fall back on the distribution zip that's packaged up into the core plugin.
 	 */
 	public static ProjectConnection getGradleConnector(GradleProject project, IProgressMonitor monitor) throws CoreException {
-		monitor.beginTask("Connecting to Gradle", 1);
+		if(monitor != null)
+			monitor.beginTask("Connecting to Gradle", 1);
 		File projectLoc = project.getLocation();
 		try {
 			ProjectConnection connection;
@@ -150,7 +155,8 @@ public abstract class GradleModelProvider {
 		} catch (Exception e) {
 			throw ExceptionUtil.coreException(e);
 		} finally {
-			monitor.done();
+			if(monitor != null)
+				monitor.done();
 		}
 	}
 

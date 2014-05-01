@@ -153,7 +153,14 @@ public class GradleDependencyComputer {
 			}
 			
 			for (EclipseProjectDependency dep : gradleModel.getProjectDependencies()) {
-				addProjectDependency(GradleCore.create(dep.getTargetProject()).getProject(), export);
+				IProject workspaceProject = GradleCore.create(dep.getTargetProject()).getProject();
+				if(workspaceProject != null && workspaceProject.isOpen())
+					addProjectDependency(GradleCore.create(dep.getTargetProject()).getProject(), export);
+				else {
+					ExternalDependency libraryEquivalent = IvyUtils.getLibraryEquivalent(dep);
+					if(libraryEquivalent != null)
+						addJarEntry(new Path(libraryEquivalent.getFile().getAbsolutePath()), libraryEquivalent, export); 
+				}
 			}
 			
 			return classpath;

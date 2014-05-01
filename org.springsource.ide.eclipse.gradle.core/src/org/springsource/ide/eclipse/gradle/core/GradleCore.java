@@ -13,7 +13,9 @@ package org.springsource.ide.eclipse.gradle.core;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -30,6 +32,7 @@ import org.gradle.tooling.model.eclipse.HierarchicalEclipseProject;
 import org.osgi.framework.BundleContext;
 import org.osgi.service.prefs.BackingStoreException;
 import org.springsource.ide.eclipse.gradle.core.autorefresh.DependencyRefresher;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
 import org.springsource.ide.eclipse.gradle.core.preferences.GradleAPIProperties;
 import org.springsource.ide.eclipse.gradle.core.preferences.GradlePreferences;
 import org.springsource.ide.eclipse.gradle.core.util.ExceptionUtil;
@@ -187,6 +190,18 @@ public class GradleCore extends Plugin {
 			}
 		}
 		return list;
+	}
+	
+	public static Set<GradleProject> getGradleRootProjects() {
+		Set<GradleProject> rootProjects = new HashSet<GradleProject>();
+		for (GradleProject gradleProject : getGradleProjects()) {
+			try {
+				rootProjects.add(gradleProject.getRootProject());
+			} catch (FastOperationFailedException e) {
+				GradleCore.log(e);
+			}
+		}
+		return rootProjects;
 	}
 
 	public static void warn(String message) {
