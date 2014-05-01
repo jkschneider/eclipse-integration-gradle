@@ -41,7 +41,7 @@ import org.springsource.ide.eclipse.gradle.core.m2e.M2EUtils;
 public class GradleProjectPropertyPage extends PropertyPage implements IWorkbenchPropertyPage {
 	
 	private Button enableSortingButton;
-	private Button enableJarToProjectMappingButton;
+	private Button enableJarToMavenProjectMappingButton;
 
 	public GradleProjectPropertyPage() {
 		super();
@@ -72,7 +72,7 @@ public class GradleProjectPropertyPage extends PropertyPage implements IWorkbenc
             enableSortingButton.setText("Alphabetically by path");
             Button disableSortingButton = new Button(group1, SWT.RADIO);
             disableSortingButton.setText("As returned by build script");
-            if (project.getProjectPreferences().getEnableClasspatEntrySorting()) {
+            if (project.getProjectPreferences().getEnableClasspathEntrySorting()) {
             	enableSortingButton.setSelection(true);
             } else {
             	disableSortingButton.setSelection(true);
@@ -82,13 +82,19 @@ public class GradleProjectPropertyPage extends PropertyPage implements IWorkbenc
             grabHorizontal.applyTo(group1);
             group1.setText("Dependency Management");
             group1.setLayout(new GridLayout(1, true));
-            enableJarToProjectMappingButton = new Button(group1, SWT.CHECK);
-            enableJarToProjectMappingButton.setText("Remap Jars to maven projects (requires Gradle 1.1 and m2e)");
-            enableJarToProjectMappingButton.setToolTipText("Try to replace jars in Gradle Dependencies by dependencies to maven projects in the workspace.");
-            enableJarToProjectMappingButton.setSelection(project.getProjectPreferences().getRemapJarsToMavenProjects());
+            
+            enableJarToMavenProjectMappingButton = new Button(group1, SWT.CHECK);
+            enableJarToMavenProjectMappingButton.setText("Remap Jars to maven projects (requires Gradle 1.1 and m2e)");
+            enableJarToMavenProjectMappingButton.setToolTipText("Try to replace jars in Gradle Dependencies by dependencies to maven projects in the workspace.");
+            enableJarToMavenProjectMappingButton.setSelection(project.getProjectPreferences().getRemapJarsToMavenProjects());
             if (!M2EUtils.isInstalled()) {
-            	enableJarToProjectMappingButton.setEnabled(false);
+            	enableJarToMavenProjectMappingButton.setEnabled(false);
             }
+            
+            Button enableJarToIvyProjectMappingButton = new Button(group1, SWT.CHECK);
+            enableJarToIvyProjectMappingButton.setText("Remap Jars to ivy projects (requires Gradle 1.1 and ivy-plugin applied in project)");
+            enableJarToIvyProjectMappingButton.setToolTipText("Try to replace jars in Gradle Dependencies by dependencies to projects containing ivy enabled projects in the workspace.");
+            enableJarToIvyProjectMappingButton.setSelection(project.getProjectPreferences().getRemapJarsToIvyProjects());
         }
         return page;
 	}
@@ -98,9 +104,9 @@ public class GradleProjectPropertyPage extends PropertyPage implements IWorkbenc
 		GradleProject gradleProject = getGradleProject();
 		GradleProjectPreferences prefs = gradleProject.getProjectPreferences();
 		prefs.setEnableClasspatEntrySorting(enableSortingButton.getSelection());
-		if (enableJarToProjectMappingButton!=null) {
+		if (enableJarToMavenProjectMappingButton!=null) {
 			//This can be null if M2E is not installed. In that case the option is not supported and the UI widgetry for it is not created.
-			prefs.setRemapJarsToMavenProjects(enableJarToProjectMappingButton.getSelection());
+			prefs.setRemapJarsToMavenProjects(enableJarToMavenProjectMappingButton.getSelection());
 		}
 		return true;
 	}

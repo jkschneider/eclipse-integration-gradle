@@ -40,9 +40,10 @@ public class GradleProjectPreferences extends AbstractGradleProjectPreferences {
 	private static final String ROOT_LOCATION_PREF = "org.springsource.ide.eclipse.gradle.rootprojectloc";
 	private static final String ENABLE_CLASSPATH_SORTING = "org.springsource.ide.eclipse.gradle.classpath.enableSorting";
 	public static final String JAR_REMAP_GRADLE_TO_MAVEN = "org.springsource.ide.eclipse.gradle.classpath.jar.remap.gradle.to.maven";
+	public static final String JAR_REMAP_GRADLE_TO_IVY = "org.springsource.ide.eclipse.gradle.classpath.jar.remap.gradle.to.ivy";
 	
 	public static final boolean DEFAULT_ENABLE_CLASSPATH_SORTING = true; 
-	public static final boolean DEFAULT_JAR_REMAP_GRADLE_TO_MAVEN = true;
+	public static final boolean DEFAULT_JAR_REMAP_GRADLE_TO_MAVEN_OR_IVY = true;
 	
 	/**
 	 * Get preferences associated with this project.
@@ -101,10 +102,10 @@ public class GradleProjectPreferences extends AbstractGradleProjectPreferences {
 	public boolean getRemapJarsToMavenProjects() {
 		try {
 			GradleProjectPreferences rootPrefs = getRootProjectPreferences();
-			return rootPrefs.get(JAR_REMAP_GRADLE_TO_MAVEN, DEFAULT_JAR_REMAP_GRADLE_TO_MAVEN);
+			return rootPrefs.get(JAR_REMAP_GRADLE_TO_MAVEN, DEFAULT_JAR_REMAP_GRADLE_TO_MAVEN_OR_IVY);
 		} catch (FastOperationFailedException e) {
 			GradleCore.log(e); 
-			return DEFAULT_JAR_REMAP_GRADLE_TO_MAVEN;
+			return DEFAULT_JAR_REMAP_GRADLE_TO_MAVEN_OR_IVY;
 		}
 	}
 	
@@ -112,6 +113,25 @@ public class GradleProjectPreferences extends AbstractGradleProjectPreferences {
 		try {
 			GradleProjectPreferences rootPrefs = getRootProjectPreferences();
 			rootPrefs.put(JAR_REMAP_GRADLE_TO_MAVEN, enable);
+		} catch (FastOperationFailedException e) {
+			GradleCore.log(e); 
+		}
+	}
+	
+	public boolean getRemapJarsToIvyProjects() {
+		try {
+			GradleProjectPreferences rootPrefs = getRootProjectPreferences();
+			return rootPrefs.get(JAR_REMAP_GRADLE_TO_IVY, DEFAULT_JAR_REMAP_GRADLE_TO_MAVEN_OR_IVY);
+		} catch (FastOperationFailedException e) {
+			GradleCore.log(e); 
+			return DEFAULT_JAR_REMAP_GRADLE_TO_MAVEN_OR_IVY;
+		}
+	}
+	
+	public void setRemapJarsToIvyProjects(boolean enable) {
+		try {
+			GradleProjectPreferences rootPrefs = getRootProjectPreferences();
+			rootPrefs.put(JAR_REMAP_GRADLE_TO_IVY, enable);
 		} catch (FastOperationFailedException e) {
 			GradleCore.log(e); 
 		}

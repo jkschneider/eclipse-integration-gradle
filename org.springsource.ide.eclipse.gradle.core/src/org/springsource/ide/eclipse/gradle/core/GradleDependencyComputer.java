@@ -18,6 +18,7 @@ import org.gradle.tooling.model.eclipse.EclipseProject;
 import org.gradle.tooling.model.eclipse.EclipseProjectDependency;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.MarkerMaker;
+import org.springsource.ide.eclipse.gradle.core.ivy.IvyUtils;
 import org.springsource.ide.eclipse.gradle.core.m2e.M2EUtils;
 import org.springsource.ide.eclipse.gradle.core.util.WorkspaceUtil;
 import org.springsource.ide.eclipse.gradle.core.wtp.WTPUtil;
@@ -98,7 +99,6 @@ public class GradleDependencyComputer {
 		return classpath;
 	}
 	
-	//TODO: right now this only computes 'jar' entries. Should also compute project dependencies It was pulled out from GradleClassPathContainer
 	private ClassPath computeEntries() {
 		MarkerMaker markers = new MarkerMaker(project, GradleClassPathContainer.ERROR_MARKER_ID);
 		try {
@@ -111,17 +111,16 @@ public class GradleDependencyComputer {
 				File file = gEntry.getFile();
 				IPath jarPath = new Path(file.getAbsolutePath()); 
 				if (jarPath.lastSegment()!=null && jarPath.lastSegment().endsWith(".jar")) {
-					boolean remapped = false;
-					if (project.getProjectPreferences().getRemapJarsToMavenProjects()) {	
-						IProject projectDep = M2EUtils.getMavenProject(gEntry);
-						if (projectDep!=null) {
-							addProjectDependency(projectDep, export);
-							remapped = true;
-						}
-					}
-					if (!remapped) {
+					IProject projectDep = null;
+					if (project.getProjectPreferences().getRemapJarsToMavenProjects())
+						projectDep = M2EUtils.getMavenProject(gEntry);
+					if (project.getProjectPreferences().getRemapJarsToIvyProjects())
+						projectDep = IvyUtils.getIvyProject(gEntry);
+					
+					if (projectDep != null)
+						addProjectDependency(projectDep, export);
+					else
 						addJarEntry(jarPath, gEntry, export);
-					}
 				} else {
 					//'non jar' entries may happen when project has a dependency on a sourceSet's output folder.
 					//See http://issues.gradle.org/browse/GRADLE-1766

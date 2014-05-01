@@ -49,8 +49,6 @@ import org.gradle.tooling.model.eclipse.EclipseSourceDirectory;
 import org.gradle.tooling.model.eclipse.HierarchicalEclipseProject;
 import org.springsource.ide.eclipse.gradle.core.GradleModelProvider.GroupedModelProvider;
 import org.springsource.ide.eclipse.gradle.core.actions.GradleRefreshPreferences;
-import org.springsource.ide.eclipse.gradle.core.autorefresh.DependencyRefresher;
-import org.springsource.ide.eclipse.gradle.core.autorefresh.IDirtyProjectListener;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspathContainerInitializer;
