@@ -20,7 +20,6 @@ import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.GradleModuleVersion;
 import org.gradle.tooling.model.eclipse.EclipseProject;
-import org.gradle.tooling.model.eclipse.EclipseProjectDependency;
 import org.gradle.tooling.model.eclipse.HierarchicalEclipseProject;
 import org.springsource.ide.eclipse.gradle.core.GradleCore;
 import org.springsource.ide.eclipse.gradle.core.GradleModelProvider;
@@ -81,15 +80,15 @@ public class IvyUtils {
             }
         });
 	
-	static LoadingCache<EclipseProjectDependency, ExternalDependency> ivyLibraryEquivalentCache = CacheBuilder.newBuilder()
-		.build(new CacheLoader<EclipseProjectDependency, ExternalDependency>() {
-            public ExternalDependency load(EclipseProjectDependency dep) throws GradleConnectionException, IllegalStateException, FastOperationFailedException, CoreException, IvyResourceNotFoundException {
+	static LoadingCache<HierarchicalEclipseProject, ExternalDependency> ivyLibraryEquivalentCache = CacheBuilder.newBuilder()
+		.build(new CacheLoader<HierarchicalEclipseProject, ExternalDependency>() {
+            public ExternalDependency load(HierarchicalEclipseProject dep) throws GradleConnectionException, IllegalStateException, FastOperationFailedException, CoreException, IvyResourceNotFoundException {
             	for (GradleProject root : GradleCore.getGradleRootProjects()) {
     				for (HierarchicalEclipseProject subproject : root.getAllProjectsInBuild()) {
-    					if(subproject.equals(dep.getTargetProject())) {
+    					if(subproject.equals(dep)) {
     						ensureWorkspaceProjectResolverContentExists(root);
     						
-    						ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(root) + "/" + subproject.getName() + "-libs"));
+    						ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(root) + "/" + subproject.getName() + "-resolver"));
     						if(projectConnection == null)
     							return null; // must not be an ivy project...
     						
@@ -126,7 +125,7 @@ public class IvyUtils {
 		return null;
 	}
 	
-	public static ExternalDependency getLibraryEquivalent(EclipseProjectDependency dep) {
+	public static ExternalDependency getLibraryEquivalent(HierarchicalEclipseProject dep) {
 		try {
 			return ivyLibraryEquivalentCache.get(dep);
 		} catch (ExecutionException e) {
@@ -142,6 +141,7 @@ public class IvyUtils {
 		return GradleCore.getInstance().getStateLocation().toFile().getPath() + "/" + project.getRootProject().getName();
 	}
 	
+	// TODO we don't ever clean up the resolver content we put in the .metadata folder here
 	private static void ensureWorkspaceProjectResolverContentExists(GradleProject project) {
 		try {
 			GradleProject rootProject = project.getRootProject();
@@ -161,15 +161,15 @@ public class IvyUtils {
 					continue;
 				
 				String projectName = hierarchicalEclipseProject.getName();
-				new File(uri + "/" + projectName + "-libs").mkdirs();
+				new File(uri + "/" + projectName + "-resolver").mkdirs();
 				
-				FileWriter buildOut = new FileWriter(new File(uri + "/" + projectName + "-libs/build.gradle"));
+				FileWriter buildOut = new FileWriter(new File(uri + "/" + projectName + "-resolver/build.gradle"));
 				buildOut.write("dependencies {\r\n");
 				buildOut.write("   compile('" + compileDep.getGroup() + ":" + compileDep.getName() + ":+') { transitive = false }\r\n");
 				buildOut.write("}");
 				buildOut.close();
 				
-				settingsIncludes.add("\"" + projectName + "-libs\"");
+				settingsIncludes.add("\"" + projectName + "-resolver\"");
 			}
 			
 			FileWriter settingsOut = new FileWriter(new File(uri + "/settings.gradle"));

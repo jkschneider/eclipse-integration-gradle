@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.springsource.ide.eclipse.gradle.core;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -21,19 +22,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.SubProgressMonitor;
+import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.internal.core.ClasspathAttribute;
+import org.eclipse.jdt.internal.core.ClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
+import org.gradle.tooling.model.ExternalDependency;
+import org.gradle.tooling.model.GradleModuleVersion;
+import org.springsource.ide.eclipse.gradle.core.wtp.WTPUtil;
+
+import com.google.common.collect.Multimap;
+import com.google.common.collect.TreeMultimap;
 
 /**
  * Helper class to simplify manipulation of a project's class path.
  * @author Kris De Volder
  */
+@SuppressWarnings("restriction")
 public class ClassPath {
 	
 	public static boolean isContainerOnClasspath(IJavaProject jp, String containerID) {
@@ -77,6 +91,23 @@ public class ClassPath {
 	 * what order entries are added in.
 	 */
 	private Map<Integer, Collection<IClasspathEntry>> entryMap = new HashMap<Integer, Collection<IClasspathEntry>>(kindOrdering.length);
+	
+	private Multimap<GradleModuleVersion, IClasspathEntry> librariesByModuleVersion = TreeMultimap.create(
+			new Comparator<GradleModuleVersion>() {
+				@Override
+				public int compare(GradleModuleVersion mv1, GradleModuleVersion mv2) {
+					String mv1Stringified = mv1 == null ? "" : mv1.getName() + ":" + mv1.getGroup();
+					String mv2Stringified = mv2 == null ? "" : mv2.getName() + ":" + mv2.getGroup();
+					return mv1Stringified.compareTo(mv2Stringified);
+				}
+			},
+			new Comparator<IClasspathEntry>() {
+				@Override
+				public int compare(IClasspathEntry e1, IClasspathEntry e2) {
+					// doesn't matter...
+					return e1.getPath().toString().compareTo(e2.getPath().toString());
+				}
+			});
 
 	public class ClasspathEntryComparator implements Comparator<IClasspathEntry> {
 		public int compare(IClasspathEntry e1, IClasspathEntry e2) {
@@ -102,6 +133,8 @@ public class ClassPath {
 
 	private boolean enableSorting; //If true, entries of the same kind will be sorted otherwise they will retained in the order they are being added.
 
+	private GradleProject gradleProject;
+
 	/** 
 	 * Create a classpath prepopoluated with a set of raw classpath entries.
 	 * 
@@ -114,6 +147,7 @@ public class ClassPath {
 	}
 	
 	public ClassPath(GradleProject project) {
+		this.gradleProject = project;
 		this.enableSorting = project.getProjectPreferences().getEnableClasspathEntrySorting();
 	}
 
@@ -155,6 +189,25 @@ public class ClassPath {
 			entryMap.put(kind, entries);
 		}
 		return entries;
+	}
+	
+	public void removeProject(IClasspathEntry entry) {
+		entryMap.get(IClasspathEntry.CPE_PROJECT).remove(entry);
+	}
+	
+	public void removeLibraryWithModuleVersion(GradleModuleVersion mv) {
+		Collection<IClasspathEntry> mvLibraries = librariesByModuleVersion.get(mv);
+		Collection<IClasspathEntry> matches = new ArrayList<IClasspathEntry>();
+		
+		Collection<IClasspathEntry> libraries = entryMap.get(IClasspathEntry.CPE_LIBRARY);
+		if(libraries == null) return;
+		
+		for (IClasspathEntry library : libraries)
+			if(mvLibraries.contains(library))
+				matches.add(library);
+		
+		for (IClasspathEntry match : matches)
+			libraries.remove(match);
 	}
 
 	/**
@@ -268,5 +321,55 @@ public class ClassPath {
 			}
 		}
 		return false;
+	}
+	
+	public void addJarEntry(ExternalDependency gEntry) {
+		// Get the location of a source jar, if any.
+		IPath sourceJarPath = null;
+		File sourceJarFile = gEntry.getSource();
+		if (sourceJarFile!=null) {
+			sourceJarPath = new Path(sourceJarFile.getAbsolutePath());
+		}
+
+		//Get the location of Java doc attachement, if any
+		List<IClasspathAttribute> extraAttributes = new ArrayList<IClasspathAttribute>();
+		File javaDoc = gEntry.getJavadoc();
+		if (javaDoc!=null) {
+			//Example of what it looks like in the eclipse .classpath file:
+			//<attributes>
+			//  <attribute name="javadoc_location" value="jar:file:/tmp/workspace/repos/test-with-jdoc-1.0-javadoc.jar!/"/>
+			//</attributes>
+			String jdoc = javaDoc.toURI().toString();
+			if (!javaDoc.isDirectory()) {
+				//Assume its a jar or zip containing the docs
+				jdoc = "jar:"+jdoc+"!/";
+			}
+			IClasspathAttribute javaDocAttribute = new ClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, jdoc);
+			extraAttributes.add(javaDocAttribute);
+		}
+		
+		File file = gEntry.getFile();
+		IPath jarPath = new Path(file.getAbsolutePath()); 
+
+		WTPUtil.excludeFromDeployment(gradleProject.getJavaProject(), jarPath, extraAttributes);
+
+		//Create classpath entry with all this info
+		IClasspathEntry newLibraryEntry = JavaCore.newLibraryEntry(
+				jarPath, 
+				sourceJarPath, 
+				null, 
+				ClasspathEntry.NO_ACCESS_RULES, 
+				extraAttributes.toArray(new IClasspathAttribute[extraAttributes.size()]), 
+				GradleCore.getInstance().getPreferences().isExportDependencies());
+		add(newLibraryEntry);
+		if (newLibraryEntry.toString().contains("unresolved dependency")) {
+			debug("entry: "+newLibraryEntry);
+		}
+		
+		librariesByModuleVersion.put(gEntry.getGradleModuleVersion(), newLibraryEntry);
+	}
+	
+	public void addProjectDependency(IProject projectDep) {
+		add(JavaCore.newProjectEntry(projectDep.getFullPath(), GradleCore.getInstance().getPreferences().isExportDependencies()));
 	}
 }

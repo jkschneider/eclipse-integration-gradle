@@ -33,6 +33,7 @@ import org.osgi.framework.BundleContext;
 import org.osgi.service.prefs.BackingStoreException;
 import org.springsource.ide.eclipse.gradle.core.autorefresh.DependencyRefresher;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
+import org.springsource.ide.eclipse.gradle.core.ivy.IvyProjectResolverWorkspaceListener;
 import org.springsource.ide.eclipse.gradle.core.preferences.GradleAPIProperties;
 import org.springsource.ide.eclipse.gradle.core.preferences.GradlePreferences;
 import org.springsource.ide.eclipse.gradle.core.util.ExceptionUtil;
@@ -70,6 +71,7 @@ public class GradleCore extends Plugin {
 		GradleCore.context = bundleContext;
 		instance = this;
 		DependencyRefresher.init();
+		ResourcesPlugin.getWorkspace().addResourceChangeListener(new IvyProjectResolverWorkspaceListener());
 	}
 
 	/*
@@ -178,17 +180,10 @@ public class GradleCore extends Plugin {
 	 * Retrieve a collection of all Gradle projects in the workspace.
 	 */
 	public static Collection<GradleProject> getGradleProjects()  {
-		IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
 		List<GradleProject> list = new ArrayList<GradleProject>();
-		for (IProject p : projects) {
-			try {
-				if (p.isAccessible() && p.hasNature(GradleNature.NATURE_ID)) {
-					list.add(GradleCore.create(p));
-				}
-			} catch (CoreException e) {
-				GradleCore.log(e);
-			}
-		}
+		for (IProject p : ResourcesPlugin.getWorkspace().getRoot().getProjects())
+			if (isGradleProject(p))
+				list.add(GradleCore.create(p));
 		return list;
 	}
 	
@@ -204,6 +199,15 @@ public class GradleCore extends Plugin {
 		return rootProjects;
 	}
 
+	public static boolean isGradleProject(IProject p) {
+		try {
+			return p.isAccessible() && p.hasNature(GradleNature.NATURE_ID);
+		} catch (CoreException e) {
+			GradleCore.log(e);
+			return false;
+		}
+	}
+	
 	public static void warn(String message) {
 		log(new Status(IStatus.WARNING, GradleCore.PLUGIN_ID, message));
 	}
