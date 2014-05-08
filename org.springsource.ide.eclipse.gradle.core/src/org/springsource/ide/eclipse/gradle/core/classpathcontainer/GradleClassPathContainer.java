@@ -135,7 +135,7 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 				if (oldModel==gradleModel) {
 					return getPersistedEntries();
 				} else {
-					IClasspathEntry[] entries = dependencyComputer.getClassPath(gradleModel).toArray();
+					IClasspathEntry[] entries = dependencyComputer.getClassPath().toArray();
 					setPersistedEntries(entries);
 					oldModel = gradleModel;
 					return entries;
@@ -219,6 +219,20 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 			}
 		}
 	}
+	
+	public void update() {
+		setPersistedEntries(project.getDependencyComputer().getClassPath().toArray());
+		
+		try {
+			JavaCore.setClasspathContainer(path,
+					new IJavaProject[] {project.getJavaProject()},  
+					//					new IClasspathContainer[] {getClone(container)}, //Clone it to make sure JDT pays attention (needs to see a 'changed' object).
+					new IClasspathContainer[] {this},
+					new NullProgressMonitor());
+		} catch (JavaModelException e) {
+			GradleCore.log(e);
+		}
+	}
 
 //	private static IClasspathContainer getClone(GradleClassPathContainer container) throws CloneNotSupportedException {
 //		if (container!=null) {
@@ -292,7 +306,6 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 				classpath.DEBUG = S_DEBUG;
 				classpath.add(WTPUtil.addToDeploymentAssembly(project, JavaCore.newContainerEntry(new Path(ID), export)));
 //						GlobalSettings.exportClasspathContainer)));
-				classpath.removeLibraryEntries();
 				classpath.setOn(project, new SubProgressMonitor(mon, 9));
 				GradleCore.create(project).getClassPathcontainer().refreshMarkers();
 				sdebug("Done Adding to "+project.getElementName());
@@ -304,7 +317,7 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 		}
 	}
 
-	private void refreshMarkers() {
+	public void refreshMarkers() {
 		oldModel = null; //Forces recomputation of entries on next 'getClasspathEntries
 		getClasspathEntries(); //The markers are now refreshed as a side effect.
 	}
@@ -319,6 +332,7 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 		IProject eclipseProject = project.getProject();
 		GradleSaveParticipant store = GradleSaveParticipant.getInstance();
 		store.put(eclipseProject, GRADLE_CLASSPATHCONTAINER_KEY, encode(persistedEntries));
+		store.save();
 	}
 
 	private IClasspathEntry[] getPersistedEntries() {

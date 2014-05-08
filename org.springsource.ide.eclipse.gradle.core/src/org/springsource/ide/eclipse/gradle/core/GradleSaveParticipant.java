@@ -86,7 +86,7 @@ public class GradleSaveParticipant implements ISaveParticipant {
 		}
 	}
 
-	private void save() {
+	public void save() {
 		debug("Saving gradle workspace state...");
 		File file = getSaveFile();
 		if (file!=null) {

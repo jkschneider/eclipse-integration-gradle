@@ -114,7 +114,7 @@ public class GradleProject {
 
 	private GradleRefreshPreferences refreshPrefs;
 
-	private GradleDependencyComputer dependencyComputer = new GradleDependencyComputer(this);
+	private GradleDependencyComputer dependencyComputer;
 
 	public GradleProject(File canonicalFile) {
 		Assert.isLegal(canonicalFile!=null, "Project location must not be null");
@@ -122,6 +122,7 @@ public class GradleProject {
 		Assert.isLegal(canonicalFile.isAbsolute(), "Project location must be absolute: "+canonicalFile);
 		Assert.isLegal(canonicalFile.isDirectory(), "Project location must be a directory: "+canonicalFile);
 		this.location = canonicalFile;
+		this.dependencyComputer = new GradleDependencyComputer(this);
 	}
 	
 	/**
@@ -131,8 +132,6 @@ public class GradleProject {
 	public void refreshDependencies(IProgressMonitor monitor) throws CoreException {
 		monitor.beginTask("Refresh dependencies "+getName(), 3);
 		try {
-			// TODO JON remove this line!
-//			refreshProjectDependencies(ProjectMapperFactory.workspaceMapper(), new SubProgressMonitor(monitor, 1));
 			refreshClasspathContainer(new SubProgressMonitor(monitor, 1));
 //			WTPUtil.addWebLibraries(this); only doing this on project import for now.
 		} finally {
@@ -914,6 +913,8 @@ public class GradleProject {
 		if (prefs!=null) {
 			File rootLocation = prefs.getRootProjectLocation();
 			if (rootLocation!=null) {
+				if(rootLocation.equals(getLocation()))
+					return this;
 				return GradleCore.create(rootLocation);
 			}
 		}

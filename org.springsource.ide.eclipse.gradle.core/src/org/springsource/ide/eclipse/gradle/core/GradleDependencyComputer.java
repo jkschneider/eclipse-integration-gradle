@@ -3,12 +3,15 @@ package org.springsource.ide.eclipse.gradle.core;
 import java.io.File;
 
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.eclipse.EclipseProject;
 import org.gradle.tooling.model.eclipse.EclipseProjectDependency;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.MarkerMaker;
 import org.springsource.ide.eclipse.gradle.core.ivy.IvyUtils;
@@ -32,27 +35,29 @@ public class GradleDependencyComputer {
 	
 	private GradleProject project;
 	private ClassPath classpath; // computed classpath or null if not yet computed.
-	private EclipseProject gradleModel; // The model that was used to compute the current classpath. We use this to check if we need to recompute the classpath.
 	
 	public GradleDependencyComputer(GradleProject project) {
 		this.project = project;
-		this.classpath = null;
-		this.gradleModel = null;
 	}
 	
-	public ClassPath getClassPath(EclipseProject gradleModel) {
-		if (classpath==null || !gradleModel.equals(this.gradleModel)) {
-			this.gradleModel = gradleModel;
-			classpath = computeEntries();
-		}
+	public ClassPath getClassPath(IProgressMonitor monitor) {
+		if (classpath==null)
+			classpath = computeEntries(monitor);
 		return classpath;
 	}
 	
-	private ClassPath computeEntries() {
+	public ClassPath getClassPath() {
+		return getClassPath(null);
+	}
+	
+	private ClassPath computeEntries(IProgressMonitor monitor) {
 		MarkerMaker markers = new MarkerMaker(project, GradleClassPathContainer.ERROR_MARKER_ID);
+		classpath = new ClassPath(project);
+		
 		try {
+			EclipseProject gradleModel = monitor != null ? project.getGradleModel(monitor) : project.getGradleModel();
+			
 			debug("gradleModel ready: "+Integer.toHexString(System.identityHashCode(gradleModel))+" "+gradleModel);
-			classpath = new ClassPath(project);
 			
 			for (ExternalDependency gEntry : gradleModel.getClasspath()) {
 				// Get the location of the jar itself
@@ -65,10 +70,10 @@ public class GradleDependencyComputer {
 					if (project.getProjectPreferences().getRemapJarsToIvyProjects())
 						projectDep = IvyUtils.getIvyProject(gEntry);
 					
-					if (projectDep != null)
-						classpath.addProjectDependency(projectDep);
-					else
-						classpath.addJarEntry(gEntry);
+					classpath.addJarEntry(gEntry);
+					if (projectDep != null) 
+						classpath.swapWithProject(projectDep);
+					
 				} else {
 					//'non jar' entries may happen when project has a dependency on a sourceSet's output folder.
 					//See http://issues.gradle.org/browse/GRADLE-1766
@@ -101,19 +106,26 @@ public class GradleDependencyComputer {
 			}
 			
 			for (EclipseProjectDependency dep : gradleModel.getProjectDependencies()) {
+				ExternalDependency libraryEquivalent = IvyUtils.getLibraryEquivalent(dep.getTargetProject());
+				if(libraryEquivalent != null)
+					classpath.addJarEntry(libraryEquivalent); 
+				
 				IProject workspaceProject = GradleCore.create(dep.getTargetProject()).getProject();
 				if(workspaceProject != null && workspaceProject.isOpen())
-					classpath.addProjectDependency(GradleCore.create(dep.getTargetProject()).getProject());
-				else {
-					ExternalDependency libraryEquivalent = IvyUtils.getLibraryEquivalent(dep.getTargetProject());
-					if(libraryEquivalent != null)
-						classpath.addJarEntry(libraryEquivalent); 
-				}
+					classpath.swapWithProject(GradleCore.create(dep.getTargetProject()).getProject());
 			}
 			
-			return classpath;
+		} catch (FastOperationFailedException e) {
+			e.printStackTrace();
+		} catch (CoreException e) {
+			e.printStackTrace();
 		} finally {
 			markers.schedule();
 		}
+		return classpath;
+	}
+	
+	public void clearClasspath() {
+		classpath = null;
 	}
 }

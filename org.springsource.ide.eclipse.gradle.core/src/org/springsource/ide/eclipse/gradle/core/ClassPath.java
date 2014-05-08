@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import org.eclipse.core.resources.IProject;
@@ -38,10 +39,8 @@ import org.eclipse.jdt.internal.core.ClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.GradleModuleVersion;
+import org.springsource.ide.eclipse.gradle.core.ivy.IvyUtils;
 import org.springsource.ide.eclipse.gradle.core.wtp.WTPUtil;
-
-import com.google.common.collect.Multimap;
-import com.google.common.collect.TreeMultimap;
 
 /**
  * Helper class to simplify manipulation of a project's class path.
@@ -92,20 +91,13 @@ public class ClassPath {
 	 */
 	private Map<Integer, Collection<IClasspathEntry>> entryMap = new HashMap<Integer, Collection<IClasspathEntry>>(kindOrdering.length);
 	
-	private Multimap<GradleModuleVersion, IClasspathEntry> librariesByModuleVersion = TreeMultimap.create(
+	private Map<GradleModuleVersion, IClasspathEntry> libraryByModuleVersion = new TreeMap<GradleModuleVersion, IClasspathEntry>(
 			new Comparator<GradleModuleVersion>() {
 				@Override
 				public int compare(GradleModuleVersion mv1, GradleModuleVersion mv2) {
 					String mv1Stringified = mv1 == null ? "" : mv1.getName() + ":" + mv1.getGroup();
 					String mv2Stringified = mv2 == null ? "" : mv2.getName() + ":" + mv2.getGroup();
 					return mv1Stringified.compareTo(mv2Stringified);
-				}
-			},
-			new Comparator<IClasspathEntry>() {
-				@Override
-				public int compare(IClasspathEntry e1, IClasspathEntry e2) {
-					// doesn't matter...
-					return e1.getPath().toString().compareTo(e2.getPath().toString());
 				}
 			});
 
@@ -190,33 +182,7 @@ public class ClassPath {
 		}
 		return entries;
 	}
-	
-	public void removeProject(IClasspathEntry entry) {
-		entryMap.get(IClasspathEntry.CPE_PROJECT).remove(entry);
-	}
-	
-	public void removeLibraryWithModuleVersion(GradleModuleVersion mv) {
-		Collection<IClasspathEntry> mvLibraries = librariesByModuleVersion.get(mv);
-		Collection<IClasspathEntry> matches = new ArrayList<IClasspathEntry>();
 		
-		Collection<IClasspathEntry> libraries = entryMap.get(IClasspathEntry.CPE_LIBRARY);
-		if(libraries == null) return;
-		
-		for (IClasspathEntry library : libraries)
-			if(mvLibraries.contains(library))
-				matches.add(library);
-		
-		for (IClasspathEntry match : matches)
-			libraries.remove(match);
-	}
-
-	/**
-	 * Removes all library entries from this classpath.
-	 */
-	public void removeLibraryEntries() {
-		entryMap.remove(IClasspathEntry.CPE_LIBRARY);
-	}
-
 	public IClasspathEntry[] toArray() {
 		ArrayList<IClasspathEntry> entries = new ArrayList<IClasspathEntry>();
 		for (int kind : kindOrdering) {
@@ -324,6 +290,19 @@ public class ClassPath {
 	}
 	
 	public void addJarEntry(ExternalDependency gEntry) {
+		IClasspathEntry newLibraryEntry = buildJarEntry(gEntry);
+		add(newLibraryEntry);
+		if (newLibraryEntry.toString().contains("unresolved dependency")) {
+			debug("entry: "+newLibraryEntry);
+		}
+		
+		libraryByModuleVersion.put(gEntry.getGradleModuleVersion(), newLibraryEntry);
+	}
+	
+	private IClasspathEntry buildJarEntry(ExternalDependency gEntry) {
+		IClasspathEntry entry = libraryByModuleVersion.get(gEntry.getGradleModuleVersion());
+		if(entry != null) return entry;
+		
 		// Get the location of a source jar, if any.
 		IPath sourceJarPath = null;
 		File sourceJarFile = gEntry.getSource();
@@ -354,22 +333,52 @@ public class ClassPath {
 		WTPUtil.excludeFromDeployment(gradleProject.getJavaProject(), jarPath, extraAttributes);
 
 		//Create classpath entry with all this info
-		IClasspathEntry newLibraryEntry = JavaCore.newLibraryEntry(
+		return JavaCore.newLibraryEntry(
 				jarPath, 
 				sourceJarPath, 
 				null, 
 				ClasspathEntry.NO_ACCESS_RULES, 
 				extraAttributes.toArray(new IClasspathAttribute[extraAttributes.size()]), 
 				GradleCore.getInstance().getPreferences().isExportDependencies());
-		add(newLibraryEntry);
-		if (newLibraryEntry.toString().contains("unresolved dependency")) {
-			debug("entry: "+newLibraryEntry);
-		}
-		
-		librariesByModuleVersion.put(gEntry.getGradleModuleVersion(), newLibraryEntry);
 	}
 	
-	public void addProjectDependency(IProject projectDep) {
-		add(JavaCore.newProjectEntry(projectDep.getFullPath(), GradleCore.getInstance().getPreferences().isExportDependencies()));
+	public boolean swapWithProject(IProject project) {
+		Collection<IClasspathEntry> libraryEntries = getEntries(IClasspathEntry.CPE_LIBRARY);
+		boolean removed = false;
+		IClasspathEntry library = libraryByModuleVersion.get(IvyUtils.gradleModuleVersion(GradleCore.create(project)));
+		if(library != null) {
+			removed = libraryEntries.remove(library);
+			
+			if(removed) {
+				Collection<IClasspathEntry> projectEntries = getEntries(IClasspathEntry.CPE_PROJECT);
+				projectEntries.add(JavaCore.newProjectEntry(project.getFullPath(), GradleCore.getInstance().getPreferences().isExportDependencies()));
+			}
+		}
+		
+		return removed;
+	}
+	
+	public boolean swapWithLibrary(IProject project) {
+		boolean removed = false;
+		
+		Collection<IClasspathEntry> projectEntries = getEntries(IClasspathEntry.CPE_PROJECT);
+		
+		IClasspathEntry projectEntry = null;
+		for(IClasspathEntry entry : projectEntries) {
+			if(entry.getPath().equals(project.getFullPath())) {
+				projectEntry = entry;
+				break;
+			}
+		}
+		if(projectEntry != null) {
+			removed = projectEntries.remove(projectEntry);
+			Collection<IClasspathEntry> libraryEntries = getEntries(IClasspathEntry.CPE_LIBRARY);
+			
+			IClasspathEntry library = libraryByModuleVersion.get(IvyUtils.gradleModuleVersion(GradleCore.create(project)));
+			if(library != null)
+				libraryEntries.add(library);
+		}
+		
+		return removed;
 	}
 }
