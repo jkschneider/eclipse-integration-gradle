@@ -39,9 +39,10 @@ public class IvyUtils {
             	ProjectConnection gradleConnector = GradleModelProvider.getGradleConnector(project, null);
             	gradleConnector.newBuild().forTasks("generateDescriptorFileForIvyPublication").run();
             	
-				String projectPath = project.getProject().getLocation().toOSString();
+				String projectPath = project.getLocation().getAbsolutePath();
 
-				reader = new BufferedReader(new FileReader(new File(projectPath + "/build/publications/ivy/ivy.xml")));
+				File file = new File(projectPath + "/build/publications/ivy/ivy.xml");
+				reader = new BufferedReader(new FileReader(file));
 				String line;
 				while((line = reader.readLine()) != null) {
 					if(line.contains("<info")) {
@@ -70,7 +71,6 @@ public class IvyUtils {
             	GradleCore.log(e);
             } 
             catch (CoreException e) {
-            	GradleCore.log(e);
 			}
             finally {
             	if(reader != null) {
@@ -100,7 +100,7 @@ public class IvyUtils {
 						if(subproject.equals(dep)) {
 							ensureWorkspaceProjectResolverContentExists(root);
 							
-							ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(root) + "/workspace-resolver"));
+							ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(subproject) + "/workspace-resolver"));
 							if(projectConnection == null) {
 								super.put(dep, null);
 								return null; // must not be an ivy project...
@@ -138,7 +138,9 @@ public class IvyUtils {
 		return null;
 	}
 	
-	public static ExternalDependency getLibraryEquivalent(HierarchicalEclipseProject dep) {
+	public static synchronized ExternalDependency getLibraryEquivalent(HierarchicalEclipseProject dep) {
+		// TODO temporary line
+		ivyLibraryEquivalentCache.clear();
 		return ivyLibraryEquivalentCache.get(dep);
 	}
 	
@@ -146,7 +148,7 @@ public class IvyUtils {
 		return v1 != null && v2 != null && v1.getGroup().equals(v2.getGroup()) && v1.getName().equals(v2.getName());
 	}
 	
-	private static String workspaceProjectResolverRoot(GradleProject project) throws IllegalStateException, FastOperationFailedException {
+	private static String workspaceProjectResolverRoot(HierarchicalEclipseProject project) throws IllegalStateException, FastOperationFailedException {
 		return GradleCore.getInstance().getStateLocation().toFile().getPath() + "/" + project.getName() + "-resolver";
 	}
 	
@@ -157,20 +159,20 @@ public class IvyUtils {
 			
 			List<HierarchicalEclipseProject> allProjectsInBuild = rootProject.getAllProjectsInBuild();
 			
-			String uri = workspaceProjectResolverRoot(project);
-			FileUtils.deleteQuietly(new File(uri));
-			new File(uri).mkdirs();
-			
-			for (HierarchicalEclipseProject hierarchicalEclipseProject : allProjectsInBuild) {
+			for (HierarchicalEclipseProject subproject : allProjectsInBuild) {
+				String uri = workspaceProjectResolverRoot(subproject);
+				FileUtils.deleteQuietly(new File(uri));
+				new File(uri).mkdirs();
+				
 				try {
 					FileUtils.copyFile(new File(rootProject.getLocation().getPath() + "/build.gradle"), new File(uri + "/build.gradle"));
 				} catch (IOException e) {
 					// If build.gradle is missing, don't copy
 				}
 				
-				if(rootProject.getSkeletalGradleModel().equals(hierarchicalEclipseProject))
+				if(rootProject.getSkeletalGradleModel().equals(subproject))
 					continue;
-				GradleModuleVersion compileDep = gradleModuleVersion(GradleCore.create(hierarchicalEclipseProject));
+				GradleModuleVersion compileDep = gradleModuleVersion(GradleCore.create(subproject));
 				if(compileDep == null)
 					continue;
 				
@@ -183,18 +185,21 @@ public class IvyUtils {
 				buildOut.close();
 				
 				try {
-					FileUtils.copyFile(new File(hierarchicalEclipseProject.getProjectDirectory().getPath() + "/gradle.properties"), new File(uri + "/workspace-resolver/gradle.properties"));
+					FileUtils.copyFile(new File(subproject.getProjectDirectory().getPath() + "/gradle.properties"), new File(uri + "/workspace-resolver/gradle.properties"));
 				} catch (IOException e) {
 					// If source file is missing, don't copy 
 				}
+				
+				FileWriter settingsOut = new FileWriter(new File(uri + "/settings.gradle"));
+				settingsOut.write("include \"workspace-resolver\"");
+				settingsOut.close();
 			}
-			
-			FileWriter settingsOut = new FileWriter(new File(uri + "/settings.gradle"));
-			settingsOut.write("include \"workspace-resolver\"");
-			settingsOut.close();
 		} catch (FastOperationFailedException e) {
+			GradleCore.log(e);
 		} catch (IOException e) {
+			GradleCore.log(e);
 		} catch (CoreException e) {
+			GradleCore.log(e);
 		}
 	}
 }
