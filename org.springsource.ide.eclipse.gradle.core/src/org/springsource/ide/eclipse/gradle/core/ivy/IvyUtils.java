@@ -5,15 +5,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
-import org.gradle.tooling.GradleConnectionException;
 import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.GradleModuleVersion;
@@ -24,96 +24,111 @@ import org.springsource.ide.eclipse.gradle.core.GradleModelProvider;
 import org.springsource.ide.eclipse.gradle.core.GradleProject;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-
 public class IvyUtils {
 	@SuppressWarnings("serial")
-	private static class IvyResourceNotFoundException extends Exception { };
-	
-	static LoadingCache<GradleProject, GradleModuleVersion> moduleVersionCache = CacheBuilder.newBuilder()
-		.build(new CacheLoader<GradleProject, GradleModuleVersion>() {
-            public GradleModuleVersion load(GradleProject project) throws CoreException, IvyResourceNotFoundException {
+	static Map<GradleProject, GradleModuleVersion> moduleVersionCache = new HashMap<GradleProject, GradleModuleVersion>() {
+		@Override
+		public GradleModuleVersion get(Object projectObj) {
+			GradleProject project = (GradleProject) projectObj;
+			
+			if(super.containsKey(project))
+				return super.get(project);
+			
+			BufferedReader reader = null;
+            try {
             	ProjectConnection gradleConnector = GradleModelProvider.getGradleConnector(project, null);
             	gradleConnector.newBuild().forTasks("generateDescriptorFileForIvyPublication").run();
             	
-            	BufferedReader reader = null;
-	            try {
-					String projectPath = project.getProject().getLocation().toOSString();
+				String projectPath = project.getProject().getLocation().toOSString();
 
-					reader = new BufferedReader(new FileReader(new File(projectPath + "/build/publications/ivy/ivy.xml")));
-					String line;
-					while((line = reader.readLine()) != null) {
-						if(line.contains("<info")) {
-							Pattern pattern = Pattern.compile("organisation=\"([^\"]*)\"");
-							Matcher matcher = pattern.matcher(line);
-							matcher.find();
-							final String org = matcher.group(1);
-							
-							pattern = Pattern.compile("module=\"([^\"]+)\"");
-							matcher = pattern.matcher(line);
-							matcher.find();
-							final String module = matcher.group(1);
-							
-							return new GradleModuleVersion() {
-								@Override public String getVersion() { return null; }
-								@Override public String getName() { return module; }
-								@Override public String getGroup() { return org; }
-							};
-						}
+				reader = new BufferedReader(new FileReader(new File(projectPath + "/build/publications/ivy/ivy.xml")));
+				String line;
+				while((line = reader.readLine()) != null) {
+					if(line.contains("<info")) {
+						Pattern pattern = Pattern.compile("organisation=\"([^\"]*)\"");
+						Matcher matcher = pattern.matcher(line);
+						matcher.find();
+						final String org = matcher.group(1);
+						
+						pattern = Pattern.compile("module=\"([^\"]+)\"");
+						matcher = pattern.matcher(line);
+						matcher.find();
+						final String module = matcher.group(1);
+						
+						GradleModuleVersion mv = new GradleModuleVersion() {
+							@Override public String getVersion() { return null; }
+							@Override public String getName() { return module; }
+							@Override public String getGroup() { return org; }
+						};
+						
+						super.put(project, mv);
+						return mv;
 					}
 				}
-	            catch (IOException e) { }
-	            finally {
-	            	if(reader != null) {
-	            		try {
-							reader.close();
-						} catch (IOException e) {
-						}
-	            	}
-	            }
-            	
-            	throw new IvyResourceNotFoundException();
+			}
+            catch (IOException e) {
+            	GradleCore.log(e);
+            } 
+            catch (CoreException e) {
+            	GradleCore.log(e);
+			}
+            finally {
+            	if(reader != null) {
+            		try {
+						reader.close();
+					} catch (IOException e) {
+					}
+            	}
             }
-        });
+            
+            return null;
+        }
+	};
 	
-	static LoadingCache<HierarchicalEclipseProject, ExternalDependency> ivyLibraryEquivalentCache = CacheBuilder.newBuilder()
-		.build(new CacheLoader<HierarchicalEclipseProject, ExternalDependency>() {
-            public ExternalDependency load(HierarchicalEclipseProject dep) throws GradleConnectionException, IllegalStateException, FastOperationFailedException, CoreException, IvyResourceNotFoundException {
-            	for (GradleProject root : GradleCore.getGradleRootProjects()) {
-    				for (HierarchicalEclipseProject subproject : root.getAllProjectsInBuild()) {
-    					if(subproject.equals(dep)) {
-    						ensureWorkspaceProjectResolverContentExists(root);
-    						
-    						ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(root) + "/workspace-resolver"));
-    						if(projectConnection == null)
-    							return null; // must not be an ivy project...
-    						
-    						EclipseProject model = projectConnection.getModel(EclipseProject.class);
-    						GradleModuleVersion projectMV = gradleModuleVersion(GradleCore.create(subproject));
-    						
-    						// the fake gradle project will contain other deps (e.g. junit) in addition to the library representing the project
-    						for (ExternalDependency modelDep : model.getClasspath()) {
-    							GradleModuleVersion depMV = modelDep.getGradleModuleVersion();
-    							if(projectMV.getGroup().equals(depMV.getGroup()) && projectMV.getName().equals(depMV.getName()))
-    								return modelDep; 
-    						}
-    					}
-    				}
-    			}
-            	throw new IvyResourceNotFoundException();
-            }
-		});
+	@SuppressWarnings("serial")
+	static Map<HierarchicalEclipseProject, ExternalDependency> ivyLibraryEquivalentCache = new HashMap<HierarchicalEclipseProject, ExternalDependency>() {
+		@Override
+        public ExternalDependency get(Object depObject) {
+			HierarchicalEclipseProject dep = (HierarchicalEclipseProject) depObject;
+			
+			if(super.containsKey(dep))
+				return super.get(dep);
+			
+        	for (GradleProject root : GradleCore.getGradleRootProjects()) {
+				try {
+					for (HierarchicalEclipseProject subproject : root.getAllProjectsInBuild()) {
+						if(subproject.equals(dep)) {
+							ensureWorkspaceProjectResolverContentExists(root);
+							
+							ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(root) + "/workspace-resolver"));
+							if(projectConnection == null) {
+								super.put(dep, null);
+								return null; // must not be an ivy project...
+							}
+							
+							EclipseProject model = projectConnection.getModel(EclipseProject.class);
+							GradleModuleVersion projectMV = gradleModuleVersion(GradleCore.create(subproject));
+							
+							// the fake gradle project will contain other deps (e.g. junit) in addition to the library representing the project
+							for (ExternalDependency modelDep : model.getClasspath()) {
+								GradleModuleVersion depMV = modelDep.getGradleModuleVersion();
+								if(projectMV.getGroup().equals(depMV.getGroup()) && projectMV.getName().equals(depMV.getName())) {
+									super.put(dep, modelDep);
+									return modelDep; 
+								}
+							}
+						}
+					}
+				} catch (Throwable t) {
+					GradleCore.log(t);
+				}
+			}
+        	return null;
+        }
+	};
 	
 	public static GradleModuleVersion gradleModuleVersion(GradleProject project) {
-		try {
-			return moduleVersionCache.get(project);
-		} catch (ExecutionException e) {
-			// unable to open project connection for this project, return null
-		}
-		
-		return null;
+		return moduleVersionCache.get(project);
 	}
 	
 	public static IProject getIvyProject(ExternalDependency dep) {
@@ -124,13 +139,7 @@ public class IvyUtils {
 	}
 	
 	public static ExternalDependency getLibraryEquivalent(HierarchicalEclipseProject dep) {
-		try {
-			return ivyLibraryEquivalentCache.get(dep);
-		} catch (ExecutionException e) {
-		} catch (Throwable t) {
-			GradleCore.log(t);
-		}
-		return null;
+		return ivyLibraryEquivalentCache.get(dep);
 	}
 	
 	private static boolean moduleVersionMatches(GradleModuleVersion v1, GradleModuleVersion v2) {
