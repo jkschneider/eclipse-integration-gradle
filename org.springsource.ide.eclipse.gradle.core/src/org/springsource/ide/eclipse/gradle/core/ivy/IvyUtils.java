@@ -5,14 +5,12 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.gradle.tooling.GradleConnectionException;
@@ -29,7 +27,6 @@ import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperation
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 
 public class IvyUtils {
 	@SuppressWarnings("serial")
@@ -89,7 +86,7 @@ public class IvyUtils {
     					if(subproject.equals(dep)) {
     						ensureWorkspaceProjectResolverContentExists(root);
     						
-    						ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(root) + "/" + subproject.getName() + "-resolver"));
+    						ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(root) + "/workspace-resolver"));
     						if(projectConnection == null)
     							return null; // must not be an ivy project...
     						
@@ -141,9 +138,7 @@ public class IvyUtils {
 	}
 	
 	private static String workspaceProjectResolverRoot(GradleProject project) throws IllegalStateException, FastOperationFailedException {
-		String displayName = project.getRootProject().getDisplayName();
-		displayName = displayName.substring(displayName.lastIndexOf('\\') + 1);
-		return GradleCore.getInstance().getStateLocation().toFile().getPath() + "/" + displayName;
+		return GradleCore.getInstance().getStateLocation().toFile().getPath() + "/" + project.getName() + "-resolver";
 	}
 	
 	// TODO we don't ever clean up the resolver content we put in the .metadata folder here
@@ -154,38 +149,39 @@ public class IvyUtils {
 			List<HierarchicalEclipseProject> allProjectsInBuild = rootProject.getAllProjectsInBuild();
 			
 			String uri = workspaceProjectResolverRoot(project);
+			FileUtils.deleteQuietly(new File(uri));
 			new File(uri).mkdirs();
 			
-			FileUtils.copyFile(new File(rootProject.getLocation().getPath() + "/build.gradle"), new File(uri + "/build.gradle"));
-			
-			List<String> settingsIncludes = new ArrayList<String>();
-			
 			for (HierarchicalEclipseProject hierarchicalEclipseProject : allProjectsInBuild) {
+				try {
+					FileUtils.copyFile(new File(rootProject.getLocation().getPath() + "/build.gradle"), new File(uri + "/build.gradle"));
+				} catch (IOException e) {
+					// If build.gradle is missing, don't copy
+				}
+				
 				if(rootProject.getSkeletalGradleModel().equals(hierarchicalEclipseProject))
 					continue;
 				GradleModuleVersion compileDep = gradleModuleVersion(GradleCore.create(hierarchicalEclipseProject));
 				if(compileDep == null)
 					continue;
 				
-				String projectName = hierarchicalEclipseProject.getName();
-				new File(uri + "/" + projectName + "-resolver").mkdirs();
+				new File(uri + "/workspace-resolver").mkdirs();
 				
-				FileWriter buildOut = new FileWriter(new File(uri + "/" + projectName + "-resolver/build.gradle"));
+				FileWriter buildOut = new FileWriter(new File(uri + "/workspace-resolver/build.gradle"));
 				buildOut.write("dependencies {\r\n");
 				buildOut.write("   compile('" + compileDep.getGroup() + ":" + compileDep.getName() + ":+') { transitive = false }\r\n");
 				buildOut.write("}");
 				buildOut.close();
 				
-				settingsIncludes.add("\"" + projectName + "-resolver\"");
 				try {
-					FileUtils.copyFile(new File(hierarchicalEclipseProject.getProjectDirectory().getPath() + "/gradle.properties"), new File(uri + "/" + projectName + "-resolver/gradle.properties"));
+					FileUtils.copyFile(new File(hierarchicalEclipseProject.getProjectDirectory().getPath() + "/gradle.properties"), new File(uri + "/workspace-resolver/gradle.properties"));
 				} catch (IOException e) {
 					// If source file is missing, don't copy 
 				}
 			}
 			
 			FileWriter settingsOut = new FileWriter(new File(uri + "/settings.gradle"));
-			settingsOut.write("include " + StringUtils.join(settingsIncludes.iterator(), ", "));
+			settingsOut.write("include \"workspace-resolver\"");
 			settingsOut.close();
 		} catch (FastOperationFailedException e) {
 		} catch (IOException e) {

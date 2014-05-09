@@ -14,6 +14,7 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.springsource.ide.eclipse.gradle.core.GradleCore;
 import org.springsource.ide.eclipse.gradle.core.GradleProject;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
 
 public class IvyProjectResolverWorkspaceListener implements IResourceChangeListener {
 	@Override
@@ -36,7 +37,7 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
                         return;
                 }
                 if (GradleCore.isGradleProject(project))
-                	gradleProjectClosed(project);
+                	projectClosed(project);
             } else if (event.getType() == IResourceChangeEvent.POST_CHANGE) {
             	// Find out if a project was opened.
                 IResourceDelta delta = event.getDelta();
@@ -62,7 +63,7 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
         }
 	}
 	
-	private void gradleProjectClosed(final IProject project) {
+	private void projectClosed(final IProject project) {
 		new Job("Closing Gradle project " + project.getName()) {
 			@Override
 			protected IStatus run(IProgressMonitor monitor) {
@@ -70,8 +71,13 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 				for (GradleProject gradleProject : GradleCore.getGradleProjects()) {
 					if(gradleProject.getProject().equals(project))
 						continue;
+					GradleClassPathContainer cpContainer = gradleProject.getClassPathcontainer();
+					if(!cpContainer.isInitialized()) {
+						// prevents error related to project reference not found on uninitialized container after the swap
+						cpContainer.notifyJDT();
+					}
 					if(gradleProject.getDependencyComputer().getClassPath(monitor).swapWithLibrary(project))
-						gradleProject.getClassPathcontainer().update();
+						cpContainer.update();
 				}
 				monitor.done();
 				return Status.OK_STATUS;
@@ -87,8 +93,13 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 				for (GradleProject gradleProject : GradleCore.getGradleProjects()) {
 					if(gradleProject.getProject().equals(project))
 						continue;
+					GradleClassPathContainer cpContainer = gradleProject.getClassPathcontainer();
+					if(!cpContainer.isInitialized()) {
+						// prevents error related to project reference not found on uninitialized container after the swap
+						cpContainer.notifyJDT(); 
+					}
 					if(gradleProject.getDependencyComputer().getClassPath(monitor).swapWithProject(project))
-						gradleProject.getClassPathcontainer().update();
+						cpContainer.update();
 				}
 				monitor.done();
 				return Status.OK_STATUS;

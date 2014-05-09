@@ -161,13 +161,8 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 
 	public String getDescription() {
 		String desc = "Gradle Dependencies";
-		if (!isInitialized()) {
-			if (getPersistedEntries()==null) {
-				desc += " (uninitialized)";
-			} else {
-				desc += " (persisted)";
-			}
-		}
+		if (!isInitialized() && getPersistedEntries()==null)
+			desc += " (uninitialized)";
 		return desc;
 	}
 
@@ -193,7 +188,7 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 	/**
 	 * Poke JDT when the container became fully initialised.
 	 */
-	void notifyJDT() {
+	public void notifyJDT() {
 		debug("notifyJDT");
 //		setJDTClassPathContainer(project, path, 
 //					isInitialized()? this : null);
@@ -209,13 +204,10 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 			try {
 				JavaCore.setClasspathContainer(path,
 						new IJavaProject[] {project},  
-						//					new IClasspathContainer[] {getClone(container)}, //Clone it to make sure JDT pays attention (needs to see a 'changed' object).
 						new IClasspathContainer[] {container},
 						new NullProgressMonitor());
 			} catch (JavaModelException e) {
 				GradleCore.log(e);
-				//		} catch (CloneNotSupportedException e) {
-				//			GradleCore.log(e);
 			}
 		}
 	}
@@ -224,9 +216,15 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 		setPersistedEntries(project.getDependencyComputer().getClassPath().toArray());
 		
 		try {
+			// setting to null first prevents errors like (not sure why):
+			// org.eclipse.core.internal.resources.ResourceException: Resource /PROJECTNAME is not open.
 			JavaCore.setClasspathContainer(path,
 					new IJavaProject[] {project.getJavaProject()},  
-					//					new IClasspathContainer[] {getClone(container)}, //Clone it to make sure JDT pays attention (needs to see a 'changed' object).
+					new IClasspathContainer[] {null},
+					new NullProgressMonitor());
+			
+			JavaCore.setClasspathContainer(path,
+					new IJavaProject[] {project.getJavaProject()},  
 					new IClasspathContainer[] {this},
 					new NullProgressMonitor());
 		} catch (JavaModelException e) {
@@ -234,21 +232,9 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 		}
 	}
 
-//	private static IClasspathContainer getClone(GradleClassPathContainer container) throws CloneNotSupportedException {
-//		if (container!=null) {
-//			return (IClasspathContainer) container.clone();
-//		}
-//		return null;
-//	}
-
 	@Override
 	public String toString() {
 		StringBuffer out = new StringBuffer(getDescription());
-//		+ "{\n");
-//		for (IClasspathEntry e : getClasspathEntries()) {
-//			out.append("   "+e.getPath()+"\n");
-//		}
-//		out.append("}");
 		return out.toString();
 	}
 
@@ -302,10 +288,8 @@ public class GradleClassPathContainer implements IClasspathContainer /*, Cloneab
 				sdebug("Adding... to "+project.getElementName());
 				//Only add it if itsn't there yet
 				ClassPath classpath = new ClassPath(GradleCore.create(project), project.getRawClasspath());
-				//			classpath.add(JavaCore.newContainerEntry(new Path(ID)));
 				classpath.DEBUG = S_DEBUG;
 				classpath.add(WTPUtil.addToDeploymentAssembly(project, JavaCore.newContainerEntry(new Path(ID), export)));
-//						GlobalSettings.exportClasspathContainer)));
 				classpath.setOn(project, new SubProgressMonitor(mon, 9));
 				GradleCore.create(project).getClassPathcontainer().refreshMarkers();
 				sdebug("Done Adding to "+project.getElementName());
