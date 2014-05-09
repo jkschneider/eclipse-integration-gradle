@@ -69,74 +69,74 @@ public class RefreshAllActionCoreTests extends GradleTest {
 		"src/test/resources"
 	};
 	
-	public void testRefreshAllManaged() throws Exception {
-		BuildFile build = new BuildFile();
-		
-		//    testCompile group: 'junit', name: 'junit', version: '4.8.2'
-		String projectName = "theproj";
-		
-		build.dependencies = "compile group: 'commons-collections', name: 'commons-collections', version: '3.2'";
-		GradleImportOperation importOp = simpleProjectImport(projectName, 
-				build.toString()
-		);
-		importOp.setEnableDSLD(false);
-		importOp.perform(new ErrorHandler.Test(), new NullProgressMonitor());
-		
-		GradleProject project = getGradleProject(projectName);
-		DSLDSupport.getInstance().enableFor(project, false, new NullProgressMonitor());
-		assertProjects(projectName); //no compile errors?
-
-		assertTrue(GradleClassPathContainer.isOnClassPath(project.getJavaProject()));
-		assertClasspathJarEntry("commons-collections-3.2.jar", project);
-		assertSourceFolders(project /*NONE*/);
-		
-		for (String srcPath : DEFAULT_SRC_FOLDERS) {
-			createFolder(project.getProject(), srcPath);
-		}
-		
-		build.dependencies = "    compile group: 'commons-collections', name: 'commons-collections', version: '3.1'";
-		createFile(project.getProject(), "build.gradle",  build.toString());
-		refreshAll(project);
-		
-		assertSourceFolders(project, DEFAULT_SRC_FOLDERS);
-		assertClasspathJarEntry("commons-collections-3.1.jar", project);
-	}
-	
-	public void testRefreshAllUnmanaged() throws Exception {
-		BuildFile build = new BuildFile();
-		
-		//    testCompile group: 'junit', name: 'junit', version: '4.8.2'
-		String projectName = "theproj";
-		
-		build.dependencies = "compile group: 'commons-collections', name: 'commons-collections', version: '3.2'";
-		GradleImportOperation importOp = simpleProjectImport(projectName, 
-				build.toString()
-		);
-		importOp.setEnableDSLD(false);
-		importOp.setEnableDependencyManagement(false);
-		importOp.perform(new ErrorHandler.Test(), new NullProgressMonitor());
-		
-		GradleProject project = getGradleProject(projectName);
-		DSLDSupport.getInstance().enableFor(project, false, new NullProgressMonitor());
-		assertProjects(projectName); //no compile errors?
-
-		assertFalse(GradleClassPathContainer.isOnClassPath(project.getJavaProject()));
-		assertClasspathJarEntry("commons-collections-3.2.jar", project);
-		assertSourceFolders(project /*NONE*/);
-		
-		for (String srcPath : DEFAULT_SRC_FOLDERS) {
-			createFolder(project.getProject(), srcPath);
-		}
-		
-		build.dependencies = "    compile group: 'commons-collections', name: 'commons-collections', version: '3.1'";
-		createFile(project.getProject(), "build.gradle",  build.toString());
-		assertFalse(GradleClassPathContainer.isOnClassPath(project.getJavaProject()));
-		refreshAll(project);
-		assertProjects(projectName); //no compile errors?
-		
-		assertSourceFolders(project, DEFAULT_SRC_FOLDERS);
-		assertClasspathJarEntry("commons-collections-3.1.jar", project);
-	}
+//	public void testRefreshAllManaged() throws Exception {
+//		BuildFile build = new BuildFile();
+//		
+//		//    testCompile group: 'junit', name: 'junit', version: '4.8.2'
+//		String projectName = "theproj";
+//		
+//		build.dependencies = "compile group: 'commons-collections', name: 'commons-collections', version: '3.2'";
+//		GradleImportOperation importOp = simpleProjectImport(projectName, 
+//				build.toString()
+//		);
+//		importOp.setEnableDSLD(false);
+//		importOp.perform(new ErrorHandler.Test(), new NullProgressMonitor());
+//		
+//		GradleProject project = getGradleProject(projectName);
+//		DSLDSupport.getInstance().enableFor(project, false, new NullProgressMonitor());
+//		assertProjects(projectName); //no compile errors?
+//
+//		assertTrue(GradleClassPathContainer.isOnClassPath(project.getJavaProject()));
+//		assertClasspathJarEntry("commons-collections-3.2.jar", project);
+//		assertSourceFolders(project /*NONE*/);
+//		
+//		for (String srcPath : DEFAULT_SRC_FOLDERS) {
+//			createFolder(project.getProject(), srcPath);
+//		}
+//		
+//		build.dependencies = "    compile group: 'commons-collections', name: 'commons-collections', version: '3.1'";
+//		createFile(project.getProject(), "build.gradle",  build.toString());
+//		refreshAll(project);
+//		
+//		assertSourceFolders(project, DEFAULT_SRC_FOLDERS);
+//		assertClasspathJarEntry("commons-collections-3.1.jar", project);
+//	}
+//	
+//	public void testRefreshAllUnmanaged() throws Exception {
+//		BuildFile build = new BuildFile();
+//		
+//		//    testCompile group: 'junit', name: 'junit', version: '4.8.2'
+//		String projectName = "theproj";
+//		
+//		build.dependencies = "compile group: 'commons-collections', name: 'commons-collections', version: '3.2'";
+//		GradleImportOperation importOp = simpleProjectImport(projectName, 
+//				build.toString()
+//		);
+//		importOp.setEnableDSLD(false);
+//		importOp.setEnableDependencyManagement(false);
+//		importOp.perform(new ErrorHandler.Test(), new NullProgressMonitor());
+//		
+//		GradleProject project = getGradleProject(projectName);
+//		DSLDSupport.getInstance().enableFor(project, false, new NullProgressMonitor());
+//		assertProjects(projectName); //no compile errors?
+//
+//		assertFalse(GradleClassPathContainer.isOnClassPath(project.getJavaProject()));
+//		assertClasspathJarEntry("commons-collections-3.2.jar", project);
+//		assertSourceFolders(project /*NONE*/);
+//		
+//		for (String srcPath : DEFAULT_SRC_FOLDERS) {
+//			createFolder(project.getProject(), srcPath);
+//		}
+//		
+//		build.dependencies = "    compile group: 'commons-collections', name: 'commons-collections', version: '3.1'";
+//		createFile(project.getProject(), "build.gradle",  build.toString());
+//		assertFalse(GradleClassPathContainer.isOnClassPath(project.getJavaProject()));
+//		refreshAll(project);
+//		assertProjects(projectName); //no compile errors?
+//		
+//		assertSourceFolders(project, DEFAULT_SRC_FOLDERS);
+//		assertClasspathJarEntry("commons-collections-3.1.jar", project);
+//	}
 	
 	public void testNoProjectConfigurators() throws Exception {
 		String projectName = "quickstart";
@@ -241,19 +241,19 @@ public class RefreshAllActionCoreTests extends GradleTest {
 		assertEquals(expectedResult, project.getDescription().getComment());
 	}
 
-	/**
-	 * Check that all expected source folders are found and no extra ones.
-	 */
-	private void assertSourceFolders(GradleProject project, String... srcFolderPaths) throws Exception {
-		IJavaProject jp = project.getJavaProject();
-		ClassPath cp = project.getClassPath();
-		IClasspathEntry[] sourceFolders = cp.getSourceFolders();
-		String[] actualPaths = new String[sourceFolders.length];
-		for (int i = 0; i < actualPaths.length; i++) {
-			actualPaths[i] = sourceFolders[i].getPath().makeRelativeTo(jp.getProject().getFullPath()).toString();
-		}
-		assertSameElements(srcFolderPaths, actualPaths);
-	}
+//	/**
+//	 * Check that all expected source folders are found and no extra ones.
+//	 */
+//	private void assertSourceFolders(GradleProject project, String... srcFolderPaths) throws Exception {
+//		IJavaProject jp = project.getJavaProject();
+//		ClassPath cp = project.getClassPath();
+//		IClasspathEntry[] sourceFolders = cp.getSourceFolders();
+//		String[] actualPaths = new String[sourceFolders.length];
+//		for (int i = 0; i < actualPaths.length; i++) {
+//			actualPaths[i] = sourceFolders[i].getPath().makeRelativeTo(jp.getProject().getFullPath()).toString();
+//		}
+//		assertSameElements(srcFolderPaths, actualPaths);
+//	}
 
 	public void testRefreshEmptyList() throws Exception {
 		refreshAll();
