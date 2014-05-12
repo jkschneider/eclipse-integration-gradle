@@ -112,7 +112,7 @@ public class ClassPath {
 		}
 
 		private String getCompareString(IClasspathEntry e) {
-			String str = e.getPath().toString();
+			String str = e.getPath().lastSegment();
 			if (e.getEntryKind()==IClasspathEntry.CPE_CONTAINER) {
 				//STS-3382: DSL support Groovy container should be last entry on classpath
 				if (str.startsWith("GROOVY_")) {

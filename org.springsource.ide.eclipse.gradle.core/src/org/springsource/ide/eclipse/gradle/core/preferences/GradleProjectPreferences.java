@@ -90,7 +90,7 @@ public class GradleProjectPreferences extends AbstractGradleProjectPreferences {
 		}
 	}
 	
-	public void setEnableClasspatEntrySorting(boolean enable) {
+	public void setEnableClasspathEntrySorting(boolean enable) {
 		try {
 			GradleProjectPreferences rootPrefs = getRootProjectPreferences();
 			rootPrefs.put(ENABLE_CLASSPATH_SORTING, enable);

@@ -1089,7 +1089,7 @@ public class GradleImportTests extends GradleTest {
 				jp.getRawClasspath());
 		
 		//Now disable sorting... the ordering should change
-		gp.getProjectPreferences().setEnableClasspatEntrySorting(false);
+		gp.getProjectPreferences().setEnableClasspathEntrySorting(false);
 		for (String name : projectNames) {
 			//Setting this should affect all projects in the hierarchy
 			GradleProject p = getGradleProject(name);
