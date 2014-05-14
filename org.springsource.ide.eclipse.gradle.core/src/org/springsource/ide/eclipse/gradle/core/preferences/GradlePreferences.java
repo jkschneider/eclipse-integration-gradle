@@ -71,8 +71,7 @@ public class GradlePreferences extends AbstractGradlePreferences implements IPre
 	public static final int DEFAULT_AUTO_REFRESH_DELAY = 5000;
 	
 	private static final String EXPORT_DEPENDENCIES =  GradlePreferences.class.getName()+".EXPORT_DEPENDENCIES";
-	public static final boolean DEFAULT_EXPORT_DEPENDENCIES =  true; //This is probably the wrong behavior but preserves backwards compatibility
-			//See: https://issuetracker.springsource.com/browse/STS-3405
+	public static final boolean DEFAULT_EXPORT_DEPENDENCIES =  true;
 
 	private static URI builtInDistribution = null;
 

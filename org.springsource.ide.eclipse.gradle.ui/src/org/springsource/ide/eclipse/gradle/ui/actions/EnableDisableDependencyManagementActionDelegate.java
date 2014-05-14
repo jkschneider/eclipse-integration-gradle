@@ -21,7 +21,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
-import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspathContainerGroup;
 import org.springsource.ide.eclipse.gradle.core.util.GradleRunnable;
 
 
@@ -39,18 +39,18 @@ public class EnableDisableDependencyManagementActionDelegate extends GradleProje
 			runInUi(new GradleRunnable("Enable/Disable Gradle Dependency Management") {
 				@Override
 				public void doit(IProgressMonitor monitor) throws Exception {
-					boolean enable = !GradleClassPathContainer.isOnClassPath(JavaCore.create(projects.get(0)));
+					boolean enable = !GradleClasspathContainerGroup.isOnClassPath(JavaCore.create(projects.get(0)));
 					monitor.beginTask(jobName, projects.size());
 					try {
 						for (IProject project : projects) {
 							try {
 								final IJavaProject javaProject = JavaCore.create(project);
-								boolean isEnabled = GradleClassPathContainer.isOnClassPath(javaProject);
+								boolean isEnabled = GradleClasspathContainerGroup.isOnClassPath(javaProject);
 								if (enable!=isEnabled) {
 									if (enable) {
-										GradleClassPathContainer.addTo(javaProject, new SubProgressMonitor(monitor, 1));
+										GradleClasspathContainerGroup.addTo(javaProject, new SubProgressMonitor(monitor, 1));
 									} else {
-										GradleClassPathContainer.removeFrom(javaProject, new SubProgressMonitor(monitor, 1));
+										GradleClasspathContainerGroup.removeFrom(javaProject, new SubProgressMonitor(monitor, 1));
 									}
 								} else {
 									monitor.worked(1);
@@ -71,7 +71,7 @@ public class EnableDisableDependencyManagementActionDelegate extends GradleProje
 	public void selectionChanged(IAction action, ISelection selection) {
 		super.selectionChanged(action, selection);
 		if (action.isEnabled()) {
-			if (GradleClassPathContainer.isOnClassPath(getJavaProject())) {
+			if (GradleClasspathContainerGroup.isOnClassPath(getJavaProject())) {
 				action.setText("Disable Dependency Management");
 			} else {
 				action.setText("Enable Dependency Management");

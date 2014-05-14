@@ -14,7 +14,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.JavaCore;
 import org.springsource.ide.eclipse.gradle.core.GradleNature;
-import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspathContainerGroup;
 import org.springsource.ide.eclipse.gradle.ui.GradleUI;
 
 
@@ -30,7 +30,7 @@ public abstract class RefreshAction extends GradleProjectActionDelegate {
 			&& project.isAccessible() 
 			&& project.hasNature(JavaCore.NATURE_ID) 
 			&& project.hasNature(GradleNature.NATURE_ID)) {
-				return GradleClassPathContainer.isOnClassPath(getJavaProject());
+				return GradleClasspathContainerGroup.isOnClassPath(getJavaProject());
 			}
 		} catch (CoreException e) {
 			GradleUI.log(e);

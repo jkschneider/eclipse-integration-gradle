@@ -5,7 +5,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -86,9 +88,9 @@ public class IvyUtils {
 	};
 	
 	@SuppressWarnings("serial")
-	static Map<HierarchicalEclipseProject, ExternalDependency> ivyLibraryEquivalentCache = new HashMap<HierarchicalEclipseProject, ExternalDependency>() {
+	static Map<HierarchicalEclipseProject, Collection<? extends ExternalDependency>> ivyLibraryEquivalentCache = new HashMap<HierarchicalEclipseProject, Collection<? extends ExternalDependency>>() {
 		@Override
-        public ExternalDependency get(Object depObject) {
+        public Collection<? extends ExternalDependency> get(Object depObject) {
 			HierarchicalEclipseProject dep = (HierarchicalEclipseProject) depObject;
 			
 			if(super.containsKey(dep))
@@ -107,16 +109,10 @@ public class IvyUtils {
 							}
 							
 							EclipseProject model = projectConnection.getModel(EclipseProject.class);
-							GradleModuleVersion projectMV = gradleModuleVersion(GradleCore.create(subproject));
+							Collection<ExternalDependency> modelDeps = new HashSet<ExternalDependency>();
 							
-							// the fake gradle project will contain other deps (e.g. junit) in addition to the library representing the project
-							for (ExternalDependency modelDep : model.getClasspath()) {
-								GradleModuleVersion depMV = modelDep.getGradleModuleVersion();
-								if(projectMV.getGroup().equals(depMV.getGroup()) && projectMV.getName().equals(depMV.getName())) {
-									super.put(dep, modelDep);
-									return modelDep; 
-								}
-							}
+							super.put(dep, model.getClasspath());
+							return modelDeps; 
 						}
 					}
 				} catch (Throwable t) {
@@ -138,7 +134,7 @@ public class IvyUtils {
 		return null;
 	}
 	
-	public static ExternalDependency getLibraryEquivalent(HierarchicalEclipseProject dep) {
+	public static Collection<? extends ExternalDependency> getLibraryEquivalent(HierarchicalEclipseProject dep) {
 		return ivyLibraryEquivalentCache.get(dep);
 	}
 	
@@ -178,7 +174,7 @@ public class IvyUtils {
 				
 				FileWriter buildOut = new FileWriter(new File(uri + "/workspace-resolver/build.gradle"));
 				buildOut.write("dependencies {\r\n");
-				buildOut.write("   compile('" + compileDep.getGroup() + ":" + compileDep.getName() + ":+') { transitive = false }\r\n");
+				buildOut.write("   compile '" + compileDep.getGroup() + ":" + compileDep.getName() + ":+'\r\n");
 				buildOut.write("}");
 				buildOut.close();
 				

@@ -48,7 +48,6 @@ import org.springsource.ide.eclipse.gradle.core.wtp.WTPUtil;
  */
 @SuppressWarnings("restriction")
 public class ClassPath {
-	
 	public static boolean isContainerOnClasspath(IJavaProject jp, String containerID) {
 		try {
 			IClasspathEntry[] entries = jp.getRawClasspath();
@@ -182,7 +181,7 @@ public class ClassPath {
 		}
 		return entries;
 	}
-		
+
 	public IClasspathEntry[] toArray() {
 		ArrayList<IClasspathEntry> entries = new ArrayList<IClasspathEntry>();
 		for (int kind : kindOrdering) {
@@ -289,14 +288,22 @@ public class ClassPath {
 		return false;
 	}
 	
+	public void rememberLibraryEntry(ExternalDependency gEntry) {
+		IClasspathEntry newLibraryEntry = buildJarEntry(gEntry);
+		rememberLibraryEntry(gEntry, newLibraryEntry);
+	}
+	
+	private void rememberLibraryEntry(ExternalDependency gEntry, IClasspathEntry entry) {
+		libraryByModuleVersion.put(gEntry.getGradleModuleVersion(), entry);
+	}
+	
 	public void addJarEntry(ExternalDependency gEntry) {
 		IClasspathEntry newLibraryEntry = buildJarEntry(gEntry);
 		add(newLibraryEntry);
 		if (newLibraryEntry.toString().contains("unresolved dependency")) {
 			debug("entry: "+newLibraryEntry);
 		}
-		
-		libraryByModuleVersion.put(gEntry.getGradleModuleVersion(), newLibraryEntry);
+		rememberLibraryEntry(gEntry, newLibraryEntry);
 	}
 	
 	private IClasspathEntry buildJarEntry(ExternalDependency gEntry) {
@@ -342,6 +349,7 @@ public class ClassPath {
 				GradleCore.getInstance().getPreferences().isExportDependencies());
 	}
 	
+	@Deprecated
 	public boolean swapWithProject(IProject project) {
 		Collection<IClasspathEntry> libraryEntries = getEntries(IClasspathEntry.CPE_LIBRARY);
 		boolean removed = false;
@@ -350,14 +358,21 @@ public class ClassPath {
 			removed = libraryEntries.remove(library);
 			
 			if(removed) {
-				Collection<IClasspathEntry> projectEntries = getEntries(IClasspathEntry.CPE_PROJECT);
-				projectEntries.add(JavaCore.newProjectEntry(project.getFullPath(), GradleCore.getInstance().getPreferences().isExportDependencies()));
+				addProjectEntry(project);
 			}
 		}
 		
 		return removed;
 	}
+
+	public void addProjectEntry(IProject project) {
+		Collection<IClasspathEntry> projectEntries = getEntries(IClasspathEntry.CPE_PROJECT);
+		projectEntries.add(JavaCore.newProjectEntry(project.getFullPath(), GradleCore.getInstance().getPreferences().isExportDependencies()));
+		
+		// TODO JON add transitives here...
+	}
 	
+	@Deprecated
 	public boolean swapWithLibrary(IProject project) {
 		boolean removed = false;
 		

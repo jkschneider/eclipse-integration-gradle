@@ -51,7 +51,10 @@ import org.springsource.ide.eclipse.gradle.core.GradleModelProvider.GroupedModel
 import org.springsource.ide.eclipse.gradle.core.actions.GradleRefreshPreferences;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspathContainerGroup;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspathContainerInitializer;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleProjectClassPathContainer;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleProjectClasspathContainerInitializer;
 import org.springsource.ide.eclipse.gradle.core.dsld.DSLDSupport;
 import org.springsource.ide.eclipse.gradle.core.launch.GradleLaunchConfigurationDelegate;
 import org.springsource.ide.eclipse.gradle.core.preferences.GradleImportPreferences;
@@ -102,6 +105,7 @@ public class GradleProject {
 	 * The class path container for this project is created lazily.
 	 */
 	private GradleClassPathContainer classPathContainer = null;
+	private GradleProjectClassPathContainer projectClassPathContainer = null;
 
 	private IProject cachedProject;
 
@@ -142,7 +146,7 @@ public class GradleProject {
 	public boolean isDependencyManaged() {
 		IJavaProject jp = getJavaProject();
 		if (jp!=null) {
-			return GradleClassPathContainer.isOnClassPath(jp);
+			return GradleClasspathContainerGroup.isOnClassPath(jp);
 		}
 		return false;
 	}
@@ -157,7 +161,7 @@ public class GradleProject {
 			IProject project = getProject();
 			if (project != null) {
 				//TODO: the requestUpdateFor is asynchronous... make it synchronous!
-				GradleClasspathContainerInitializer.requestUpdateFor(project, false);
+				GradleClasspathContainerGroup.requestUpdate(project, false);
 			}
 		} finally {
 			monitor.done();
@@ -426,8 +430,12 @@ public class GradleProject {
 		}
 	}
 
-	public GradleClassPathContainer getClassPathcontainer() {
+	public GradleClassPathContainer getClassPathContainer() {
 		return classPathContainer;
+	}
+	
+	public GradleProjectClassPathContainer getProjectClassPathContainer() {
+		return projectClassPathContainer;
 	}
 
 	/**
@@ -437,6 +445,15 @@ public class GradleProject {
 	public void setClassPathContainer(GradleClassPathContainer it) {
 		Assert.isLegal(classPathContainer==null, "Classpath container set multiple times");
 		this.classPathContainer = it;
+	}
+	
+	/**
+	 * Called by {@link GradleProjectClasspathContainerInitializer} when the class path container
+	 * for this project is instantiated.
+	 */
+	public void setProjectClassPathContainer(GradleProjectClassPathContainer it) {
+		Assert.isLegal(projectClassPathContainer==null, "Project classpath container set multiple times");
+		this.projectClassPathContainer = it;
 	}
 
 	/**
@@ -639,7 +656,7 @@ public class GradleProject {
 			debug("DSLDSupport maybe added");
 			
 			//6: Add classpath container
-			GradleClassPathContainer.addTo(getJavaProject(), new SubProgressMonitor(monitor, 1));
+			GradleClasspathContainerGroup.addTo(getJavaProject(), new SubProgressMonitor(monitor, 1));
 			debug("Classpath container added");
 
 			//7: Add WTP fixups
@@ -673,26 +690,6 @@ public class GradleProject {
 		return null;
 	}
 
-//	/**
-//	 * Set the cached GradleModel for this project. If the overWrite flag is set to true, then the model will
-//	 * be replaced no matter what. If the overwrite flag is not set, then we will only overwrite the existing model
-//	 * if the newly provided model is more detailed than what we currently have.
-//	 */
-//	public synchronized void setGradleModel(HierarchicalEclipseProject model, boolean overwrite) {
-//		if (overwrite) {
-//			internalSetModel(model);
-//		} else {
-//			//Be careful not to loose info by replacing our model with a less detailed model!
-//			if (this.gradleModel==null) {
-//				internalSetModel(model);
-//			} else if (isLessDetailed(model, this.gradleModel)) {
-//				//Don't replace the old model with a less detailed one.
-//			} else {
-//				internalSetModel(model);
-//			}
-//		}
-//	}
-
 	void notifyModelListeners(HierarchicalEclipseProject newModel) {
 		IGradleModelListener[] ls = modelListeners.toArray();
 		for (IGradleModelListener l : ls) {
@@ -702,14 +699,6 @@ public class GradleProject {
 		}
 	}
 	
-//	private boolean isLessDetailed(HierarchicalEclipseProject lessModel, HierarchicalEclipseProject moreModel) {
-//		if (lessModel instanceof HierarchicalEclipseProject) {
-//			return moreModel instanceof EclipseProject;
-//		}
-//		//If we get here, lessModel can only be a EclipseProject, so it can't be less detailed than any other model
-//		return false;
-//	}
-
 	@Override
 	public String toString() {
 		IProject project = getProject();
@@ -719,31 +708,6 @@ public class GradleProject {
 		return "G"+location;
 	}
 	
-//	/**
-//	 * For debugging purposes, dump dependency graph (as a tree) onto system out.
-//	 */
-//	public void printDependencyGraph() {
-//		System.out.println(">>>>>>>> dependencies for "+getName()+">>>>>>>>>>>>>");
-//		try {
-//			printDependencyGraph(0, getGradleModel(new NullProgressMonitor()));
-//		} catch (OperationCanceledException e) {
-//			e.printStackTrace();
-//		} catch (CoreException e) {
-//			e.printStackTrace();
-//		}
-//		System.out.println("<<<<<<<< dependencies for "+getName()+"<<<<<<<<<<<<<<");
-//	}
-//
-//	private static void printDependencyGraph(int i, EclipseProject project) {
-//		for (int j = 0; j < i; j++) {
-//			System.out.print("  ");
-//		}
-//		System.out.println(GradleImportOperation.getDefaultEclipseName(project));
-//		for (EclipseProjectDependency dep : project.getProjectDependencies().getAll()) {
-//			printDependencyGraph(i+1, dep.getTargetProject());
-//		}
-//	}
-
 	/**
 	 * @return Absolute file system location corresponding to this project. This is never null.
 	 */
@@ -941,7 +905,7 @@ public class GradleProject {
 			return null;
 		}
 	}
-
+	
 	public void setModelProvider(GroupedModelProvider provider) {
 		if (this.modelProvider!=provider) {
 			this.modelProvider = provider;

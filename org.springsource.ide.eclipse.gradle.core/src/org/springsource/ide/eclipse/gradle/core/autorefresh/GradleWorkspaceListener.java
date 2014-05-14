@@ -26,7 +26,7 @@ import org.springsource.ide.eclipse.gradle.core.GradleCore;
 import org.springsource.ide.eclipse.gradle.core.GradleNature;
 import org.springsource.ide.eclipse.gradle.core.GradleProject;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
-import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspathContainerGroup;
 
 /**
  * Listens for workspace changes and marks Gradle projects as dirty when
@@ -91,7 +91,7 @@ public class GradleWorkspaceListener {
 					for (IProject p : ResourcesPlugin.getWorkspace().getRoot().getProjects()) {
 						if (GradleNature.hasNature(p)) {
 							GradleProject gp = GradleCore.create(p);
-							if (GradleClassPathContainer.isOnClassPath(gp.getJavaProject())) {
+							if (GradleClasspathContainerGroup.isOnClassPath(gp.getJavaProject())) {
 								//Auto refresh is limited to projects that have dependency management
 								//enabled. It may be possible to broaden this.
 								try {

@@ -14,7 +14,8 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.springsource.ide.eclipse.gradle.core.GradleCore;
 import org.springsource.ide.eclipse.gradle.core.GradleProject;
-import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspathContainerGroup;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleProjectClassPathContainer;
 
 public class IvyProjectResolverWorkspaceListener implements IResourceChangeListener {
 	@Override
@@ -68,20 +69,11 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 			@Override
 			protected IStatus run(IProgressMonitor monitor) {
 				monitor.beginTask("Closing Gradle project" + project.getName(), IProgressMonitor.UNKNOWN);
-				for (GradleProject gradleProject : GradleCore.getGradleProjects()) {
-					if(gradleProject.getProject().equals(project))
-						continue;
-					GradleClassPathContainer cpContainer = gradleProject.getClassPathcontainer();
-					if(!cpContainer.isInitialized()) {
-						// prevents error related to project reference not found on uninitialized container after the swap
-						cpContainer.notifyJDT();
-					}
-					if(gradleProject.getDependencyComputer().getClassPath(monitor).swapWithLibrary(project))
-						cpContainer.update();
-				}
+				updateRelatedProjects(project);
 				monitor.done();
 				return Status.OK_STATUS;
 			}
+
 		}.schedule();
     }
 	
@@ -90,20 +82,20 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 			@Override
 			protected IStatus run(IProgressMonitor monitor) {
 				monitor.beginTask("Opening Gradle project" + project.getName(), IProgressMonitor.UNKNOWN);
-				for (GradleProject gradleProject : GradleCore.getGradleProjects()) {
-					if(gradleProject.getProject().equals(project))
-						continue;
-					GradleClassPathContainer cpContainer = gradleProject.getClassPathcontainer();
-					if(!cpContainer.isInitialized()) {
-						// prevents error related to project reference not found on uninitialized container after the swap
-						cpContainer.notifyJDT(); 
-					}
-					if(gradleProject.getDependencyComputer().getClassPath(monitor).swapWithProject(project))
-						cpContainer.update();
-				}
+				updateRelatedProjects(project);
 				monitor.done();
 				return Status.OK_STATUS;
 			}
 		}.schedule();
     }
+	
+	private void updateRelatedProjects(final IProject project) {
+		for (GradleProject gradleProject : GradleCore.getGradleProjects()) {
+			if(gradleProject.getProject().equals(project))
+				continue;
+			GradleProjectClassPathContainer projectCpContainer = gradleProject.getProjectClassPathContainer();
+			if(projectCpContainer != null && projectCpContainer.dependsOnProject(project))
+				GradleClasspathContainerGroup.requestUpdate(project, false);
+		}
+	}
 }
