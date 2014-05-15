@@ -21,4 +21,9 @@ public class GradleProjectClassPathContainer extends BaseGradleClasspathContaine
 	protected IClasspathEntry[] getFilteredClasspathEntries() throws FastOperationFailedException, CoreException {
 		return project.getDependencyComputer().getProjectClassPath(new NullProgressMonitor()).toArray();
 	}
+	
+	@Override
+	public String getDescription() {
+		return super.getDescription();
+	}
 }

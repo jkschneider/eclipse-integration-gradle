@@ -34,4 +34,9 @@ public class GradleClassPathContainer extends BaseGradleClasspathContainer {
 	protected IClasspathEntry[] getFilteredClasspathEntries() throws FastOperationFailedException, CoreException {
 		return project.getDependencyComputer().getClassPath(new NullProgressMonitor()).toArray();
 	}
+	
+	@Override
+	public String getDescription() {
+		return super.getDescription();
+	}
 }

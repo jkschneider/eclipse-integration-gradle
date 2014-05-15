@@ -568,19 +568,7 @@ public class GradleProject {
 	public EclipseProject getGradleModel(IProgressMonitor monitor) throws OperationCanceledException, CoreException {
 		return getGradleModel(EclipseProject.class, monitor);
 	}
-	
-	public HierarchicalEclipseProject getSubproject() throws CoreException {
-		try {
-			for (HierarchicalEclipseProject subproject : getRootProject().getAllProjectsInBuild()) {
-				if(subproject.getName().equals(getName()))
-					return subproject;
-			}
-		} catch (FastOperationFailedException e) {
-			GradleCore.log(e);
-		}
-		return null;
-	}
-	
+
 	public HierarchicalEclipseProject getSkeletalGradleModel() throws FastOperationFailedException, CoreException {
 		return getGradleModel(HierarchicalEclipseProject.class);
 	}

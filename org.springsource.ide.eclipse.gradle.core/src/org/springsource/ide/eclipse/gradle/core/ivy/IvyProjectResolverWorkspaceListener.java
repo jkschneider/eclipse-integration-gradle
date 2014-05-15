@@ -113,8 +113,8 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 	
 	private boolean dependsOnThroughIvyDependency(GradleProject depender, GradleProject dependee, IProgressMonitor monitor) {
 		try {
-			ExternalDependency library = IvyUtils.getLibrary(dependee.getSubproject(), monitor);
-			IPath jarPath = new Path(library.getFile().getAbsolutePath()); 
+			ExternalDependency library = IvyUtils.getLibrary(dependee.getGradleModel(monitor), monitor);
+			IPath jarPath = library != null ? new Path(library.getFile().getAbsolutePath()) : null; 
 			
 			for (IClasspathEntry entry : depender.getDependencyComputer().getClassPath(monitor).toArray())
 				if(entry.getPath().equals(jarPath))
