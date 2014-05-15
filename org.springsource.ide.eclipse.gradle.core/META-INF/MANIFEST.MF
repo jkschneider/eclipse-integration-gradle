@@ -43,6 +43,5 @@ Export-Package: org.springsource.ide.eclipse.gradle.core,
  org.springsource.ide.eclipse.gradle.core.wtp
 Bundle-Vendor: Pivotal Software, Inc.
 Eclipse-BundleShape: dir
-Import-Package: org.apache.commons.lang,
- org.junit,
+Import-Package: org.junit,
  org.hamcrest.core
