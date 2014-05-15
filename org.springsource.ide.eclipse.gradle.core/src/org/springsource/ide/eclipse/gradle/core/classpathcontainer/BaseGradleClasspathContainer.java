@@ -71,6 +71,7 @@ public abstract class BaseGradleClasspathContainer implements IClasspathContaine
 		IProject eclipseProject = project.getProject();
 		GradleSaveParticipant store = GradleSaveParticipant.getInstance();
 		store.put(eclipseProject, id, encode(persistedEntries));
+		store.save();
 	}
 	
 	public boolean isInitialized() {
