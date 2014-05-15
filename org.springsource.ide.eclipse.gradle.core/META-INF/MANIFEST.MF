@@ -31,6 +31,7 @@ Export-Package: org.springsource.ide.eclipse.gradle.core,
  org.springsource.ide.eclipse.gradle.core.api,
  org.springsource.ide.eclipse.gradle.core.classpathcontainer,
  org.springsource.ide.eclipse.gradle.core.dsld,
+ org.springsource.ide.eclipse.gradle.core.ivy,
  org.springsource.ide.eclipse.gradle.core.launch,
  org.springsource.ide.eclipse.gradle.core.m2e,
  org.springsource.ide.eclipse.gradle.core.preferences,
@@ -42,4 +43,6 @@ Export-Package: org.springsource.ide.eclipse.gradle.core,
  org.springsource.ide.eclipse.gradle.core.wtp
 Bundle-Vendor: Pivotal Software, Inc.
 Eclipse-BundleShape: dir
-Import-Package: org.apache.commons.lang
+Import-Package: org.apache.commons.lang,
+ org.junit,
+ org.hamcrest.core

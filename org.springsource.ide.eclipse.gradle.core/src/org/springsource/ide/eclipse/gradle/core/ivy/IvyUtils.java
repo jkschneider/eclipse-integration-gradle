@@ -3,7 +3,6 @@ package org.springsource.ide.eclipse.gradle.core.ivy;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -182,32 +181,28 @@ public class IvyUtils {
 					// If source file is missing, don't copy 
 				}
 				
-				try {
-					if(rootProject.equals(project)) {
-						copySingleProjectBuildGradle(rootProject, uri);
-						return;
+				GradleModuleVersion compileDep = gradleModuleVersion(GradleCore.create(subproject));
+				
+				String resolverBuildScript;
+				
+				if(compileDep == null) {
+					resolverBuildScript = "dependencies { }";
+				}
+				else if(rootProject.equals(project)) {
+					resolverBuildScript = injectDependenciesIntoExistingBuildScript(compileDep, 
+							FileUtils.readFileToString(new File(rootProject.getLocation().getPath() + "/build.gradle")));
+				}
+				else {
+					try {
+						FileUtils.copyFile(new File(rootProject.getLocation().getPath() + "/build.gradle"), new File(uri + "/build.gradle"));
+					} catch (IOException e) {
+						// If build.gradle is missing, don't copy
 					}
-					FileUtils.copyFile(new File(rootProject.getLocation().getPath() + "/build.gradle"), new File(uri + "/build.gradle"));
-				} catch (IOException e) {
-					// If build.gradle is missing, don't copy
+					resolverBuildScript = buildDependenciesTask(compileDep);
 				}
 				
-				if(rootProject.getSkeletalGradleModel().equals(subproject))
-					continue;
-				
-				FileWriter buildOut = new FileWriter(new File(uri + "/workspace-resolver/build.gradle"));
-				buildOut.write("dependencies {\r\n");
-				
-				GradleModuleVersion compileDep = gradleModuleVersion(GradleCore.create(subproject));
-				if(compileDep != null)
-					buildOut.write("   compile '" + compileDep.getGroup() + ":" + compileDep.getName() + ":+'\r\n");
-				
-				buildOut.write("}");
-				buildOut.close();
-				
-				FileWriter settingsOut = new FileWriter(new File(uri + "/settings.gradle"));
-				settingsOut.write("include \"workspace-resolver\"");
-				settingsOut.close();
+				FileUtils.writeStringToFile(new File(uri + "/workspace-resolver/build.gradle"), resolverBuildScript);
+				FileUtils.writeStringToFile(new File(uri + "/settings.gradle"), "include \"workspace-resolver\"");
 			}
 		} catch (FastOperationFailedException e) {
 			GradleCore.log(e);
@@ -218,16 +213,31 @@ public class IvyUtils {
 		}
 	}
 
-	/**
-	 * Copy single project build.gradle script, replacing dependencies { .. } with a single dependency representing the project
-	 * @param rootProject
-	 * @param uri
-	 * @throws IOException
-	 */
-	private static void copySingleProjectBuildGradle(GradleProject rootProject, String uri) throws IOException {
-		String buildGradleScript = FileUtils.readFileToString(new File(rootProject.getLocation().getPath() + "/build.gradle"));
-		// TODO JON replace dependencies with this single project
+	protected static String injectDependenciesIntoExistingBuildScript(GradleModuleVersion compileDep, String buildGradleScript) {
+		int depStart = buildGradleScript.indexOf("dependencies {");
+		if(depStart >= 0) {
+			boolean innerBlock = false;
+			int nextClose = depStart + "dependencies {".length();
+			do {
+				innerBlock = false;
+				int nextOpen = buildGradleScript.indexOf('{', nextClose+1);
+				nextClose = buildGradleScript.indexOf('}', nextClose+1);
+				if(nextOpen > -1 && nextOpen < nextClose)
+					innerBlock = true;
+			} while(innerBlock && nextClose > 0);
+			
+			if(nextClose > 0) {
+				String scriptWithoutDeps = buildGradleScript.substring(0, depStart);
+				if(nextClose < buildGradleScript.length())
+					scriptWithoutDeps += buildGradleScript.substring(nextClose+1);
+				buildGradleScript = scriptWithoutDeps;
+			}
+		}
 		
-		FileUtils.writeStringToFile(new File(uri + "/workspace-resolver/build.gradle"), buildGradleScript);
+		return buildGradleScript + buildDependenciesTask(compileDep);
+	}
+
+	private static String buildDependenciesTask(GradleModuleVersion compileDep) {
+		return "dependencies { compile '" + compileDep.getGroup() + ":" + compileDep.getName() + ":+' }";
 	}
 }
