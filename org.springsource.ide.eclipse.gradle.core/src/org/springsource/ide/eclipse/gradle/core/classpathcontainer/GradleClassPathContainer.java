@@ -12,6 +12,7 @@ package org.springsource.ide.eclipse.gradle.core.classpathcontainer;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.springsource.ide.eclipse.gradle.core.GradleProject;
 
@@ -31,6 +32,6 @@ public class GradleClassPathContainer extends BaseGradleClasspathContainer {
 	}
 
 	protected IClasspathEntry[] getFilteredClasspathEntries() throws FastOperationFailedException, CoreException {
-		return project.getDependencyComputer().getClassPath().toArray();
+		return project.getDependencyComputer().getClassPath(new NullProgressMonitor()).toArray();
 	}
 }

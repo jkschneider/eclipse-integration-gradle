@@ -39,7 +39,6 @@ import org.eclipse.jdt.internal.core.ClasspathEntry;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.GradleModuleVersion;
-import org.springsource.ide.eclipse.gradle.core.ivy.IvyUtils;
 import org.springsource.ide.eclipse.gradle.core.wtp.WTPUtil;
 
 /**
@@ -349,51 +348,10 @@ public class ClassPath {
 				GradleCore.getInstance().getPreferences().isExportDependencies());
 	}
 	
-	@Deprecated
-	public boolean swapWithProject(IProject project) {
-		Collection<IClasspathEntry> libraryEntries = getEntries(IClasspathEntry.CPE_LIBRARY);
-		boolean removed = false;
-		IClasspathEntry library = libraryByModuleVersion.get(IvyUtils.gradleModuleVersion(GradleCore.create(project)));
-		if(library != null) {
-			removed = libraryEntries.remove(library);
-			
-			if(removed) {
-				addProjectEntry(project);
-			}
-		}
-		
-		return removed;
-	}
-
 	public void addProjectEntry(IProject project) {
 		Collection<IClasspathEntry> projectEntries = getEntries(IClasspathEntry.CPE_PROJECT);
 		projectEntries.add(JavaCore.newProjectEntry(project.getFullPath(), GradleCore.getInstance().getPreferences().isExportDependencies()));
 		
 		// TODO JON add transitives here...
-	}
-	
-	@Deprecated
-	public boolean swapWithLibrary(IProject project) {
-		boolean removed = false;
-		
-		Collection<IClasspathEntry> projectEntries = getEntries(IClasspathEntry.CPE_PROJECT);
-		
-		IClasspathEntry projectEntry = null;
-		for(IClasspathEntry entry : projectEntries) {
-			if(entry.getPath().equals(project.getFullPath())) {
-				projectEntry = entry;
-				break;
-			}
-		}
-		if(projectEntry != null) {
-			removed = projectEntries.remove(projectEntry);
-			Collection<IClasspathEntry> libraryEntries = getEntries(IClasspathEntry.CPE_LIBRARY);
-			
-			IClasspathEntry library = libraryByModuleVersion.get(IvyUtils.gradleModuleVersion(GradleCore.create(project)));
-			if(library != null)
-				libraryEntries.add(library);
-		}
-		
-		return removed;
 	}
 }

@@ -1,8 +1,6 @@
 package org.springsource.ide.eclipse.gradle.core;
 
 import java.io.File;
-import java.util.HashSet;
-import java.util.Set;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
@@ -14,7 +12,6 @@ import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.eclipse.EclipseProject;
 import org.gradle.tooling.model.eclipse.EclipseProjectDependency;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.BaseGradleClasspathContainer;
-import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.MarkerMaker;
 import org.springsource.ide.eclipse.gradle.core.ivy.IvyUtils;
 import org.springsource.ide.eclipse.gradle.core.m2e.M2EUtils;
@@ -39,8 +36,6 @@ public class GradleDependencyComputer {
 	private ClassPath classpath; // computed classpath or null if not yet computed.
 	private ClassPath projectClasspath; // computed project classpath or null if not yet computed.
 	
-	private Set<IProject> projectDependencyMaybes = new HashSet<IProject>();
-	
 	public GradleDependencyComputer(GradleProject project) {
 		this.project = project;
 	}
@@ -57,22 +52,13 @@ public class GradleDependencyComputer {
 		return projectClasspath;
 	}
 	
-	public ClassPath getProjectClassPath() {
-		return getProjectClassPath(null);
-	}
-	
-	public ClassPath getClassPath() {
-		return getClassPath(null);
-	}
-	
 	private void computeEntries(IProgressMonitor monitor) {
 		MarkerMaker markers = new MarkerMaker(project, BaseGradleClasspathContainer.ERROR_MARKER_ID);
-		projectDependencyMaybes.clear();
 		classpath = new ClassPath(project);
 		projectClasspath = new ClassPath(project);
 		
 		try {
-			EclipseProject gradleModel = monitor != null ? project.getGradleModel(monitor) : project.getGradleModel();
+			EclipseProject gradleModel = project.getGradleModel(monitor);
 			
 			debug("gradleModel ready: "+Integer.toHexString(System.identityHashCode(gradleModel))+" "+gradleModel);
 			
@@ -88,7 +74,6 @@ public class GradleDependencyComputer {
 						projectDep = IvyUtils.getIvyProject(gEntry);
 					
 					if (projectDep != null) {
-						projectDependencyMaybes.add(projectDep);
 						projectClasspath.rememberLibraryEntry(gEntry);
 						projectClasspath.addProjectEntry(projectDep);
 					}
@@ -128,21 +113,17 @@ public class GradleDependencyComputer {
 			
 			for (EclipseProjectDependency dep : gradleModel.getProjectDependencies()) {
 				IProject workspaceProject = GradleCore.create(dep.getTargetProject()).getProject();
-				if(workspaceProject != null)
-					projectDependencyMaybes.add(workspaceProject);
 				
 				if(workspaceProject != null && workspaceProject.isOpen()) {
 					projectClasspath.addProjectEntry(GradleCore.create(dep.getTargetProject()).getProject());
 					continue;
 				}
 				
-				for(ExternalDependency library : IvyUtils.getLibraryEquivalent(dep.getTargetProject()))
+				for(ExternalDependency library : IvyUtils.getLibraryAndTransitives(dep.getTargetProject()))
 					projectClasspath.addJarEntry(library); 
 			}
-		} catch (FastOperationFailedException e) {
-			e.printStackTrace();
 		} catch (CoreException e) {
-			e.printStackTrace();
+			GradleCore.log(e);
 		} finally {
 			markers.schedule();
 		}
@@ -151,9 +132,5 @@ public class GradleDependencyComputer {
 	public void clearClasspath() {
 		classpath = null;
 		projectClasspath = null;
-	}
-	
-	public Set<IProject> getProjectDependencyMaybes() {
-		return projectDependencyMaybes;
 	}
 }

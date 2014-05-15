@@ -1,8 +1,8 @@
 package org.springsource.ide.eclipse.gradle.core.classpathcontainer;
 
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.springsource.ide.eclipse.gradle.core.GradleProject;
 
@@ -19,10 +19,6 @@ public class GradleProjectClassPathContainer extends BaseGradleClasspathContaine
 
 	@Override
 	protected IClasspathEntry[] getFilteredClasspathEntries() throws FastOperationFailedException, CoreException {
-		return project.getDependencyComputer().getProjectClassPath().toArray();
-	}
-	
-	public boolean dependsOnProject(IProject workspaceProject) {
-		return project.getDependencyComputer().getProjectDependencyMaybes().contains(workspaceProject);
+		return project.getDependencyComputer().getProjectClassPath(new NullProgressMonitor()).toArray();
 	}
 }

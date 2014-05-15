@@ -29,6 +29,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
@@ -568,6 +569,18 @@ public class GradleProject {
 		return getGradleModel(EclipseProject.class, monitor);
 	}
 	
+	public HierarchicalEclipseProject getSubproject() throws CoreException {
+		try {
+			for (HierarchicalEclipseProject subproject : getRootProject().getAllProjectsInBuild()) {
+				if(subproject.getName().equals(getName()))
+					return subproject;
+			}
+		} catch (FastOperationFailedException e) {
+			GradleCore.log(e);
+		}
+		return null;
+	}
+	
 	public HierarchicalEclipseProject getSkeletalGradleModel() throws FastOperationFailedException, CoreException {
 		return getGradleModel(HierarchicalEclipseProject.class);
 	}
@@ -823,7 +836,7 @@ public class GradleProject {
 	}
 
 	public boolean dependsOn(GradleProject other) throws FastOperationFailedException, CoreException {
-		HierarchicalEclipseProject model = getSkeletalGradleModel();
+		HierarchicalEclipseProject model = getSkeletalGradleModel(new NullProgressMonitor());
 		DomainObjectSet<? extends EclipseProjectDependency> deps = model.getProjectDependencies();
 		for (EclipseProjectDependency _dep : deps) {
 			GradleProject dep = GradleCore.create(_dep.getTargetProject());
@@ -831,6 +844,7 @@ public class GradleProject {
 				return true;
 			}
 		}
+		
 		return false;
 	}
 
@@ -940,7 +954,7 @@ public class GradleProject {
 			public void visit(HierarchicalEclipseProject project) throws CoreException {
 				projects.add(project);
 			}
-		}.accept(getRootProject().getGradleModel(HierarchicalEclipseProject.class));
+		}.accept(getRootProject().getGradleModel(HierarchicalEclipseProject.class, new NullProgressMonitor()));
 		return projects;
 	}
 
@@ -964,6 +978,4 @@ public class GradleProject {
 		}
 		return null;
 	}
-
-
 }

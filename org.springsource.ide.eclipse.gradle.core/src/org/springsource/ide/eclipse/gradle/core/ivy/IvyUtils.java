@@ -5,9 +5,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -16,6 +16,8 @@ import java.util.regex.Pattern;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.GradleModuleVersion;
@@ -38,7 +40,7 @@ public class IvyUtils {
 			
 			BufferedReader reader = null;
             try {
-            	ProjectConnection gradleConnector = GradleModelProvider.getGradleConnector(project, null);
+            	ProjectConnection gradleConnector = GradleModelProvider.getGradleConnector(project, new NullProgressMonitor());
             	gradleConnector.newBuild().forTasks("generateDescriptorFileForIvyPublication").run();
             	
 				String projectPath = project.getLocation().getAbsolutePath();
@@ -73,6 +75,7 @@ public class IvyUtils {
             	GradleCore.log(e);
             } 
             catch (CoreException e) {
+            	GradleCore.log(e);
 			}
             finally {
             	if(reader != null) {
@@ -87,41 +90,52 @@ public class IvyUtils {
         }
 	};
 	
-	@SuppressWarnings("serial")
-	static Map<HierarchicalEclipseProject, Collection<? extends ExternalDependency>> ivyLibraryEquivalentCache = new HashMap<HierarchicalEclipseProject, Collection<? extends ExternalDependency>>() {
-		@Override
-        public Collection<? extends ExternalDependency> get(Object depObject) {
-			HierarchicalEclipseProject dep = (HierarchicalEclipseProject) depObject;
-			
-			if(super.containsKey(dep))
-				return super.get(dep);
-			
-        	for (GradleProject root : GradleCore.getGradleRootProjects()) {
-				try {
-					for (HierarchicalEclipseProject subproject : root.getAllProjectsInBuild()) {
-						if(subproject.equals(dep)) {
-							ensureWorkspaceProjectResolverContentExists(root);
-							
-							ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(new File(workspaceProjectResolverRoot(subproject) + "/workspace-resolver"));
-							if(projectConnection == null) {
-								super.put(dep, null);
-								return null; // must not be an ivy project...
-							}
-							
-							EclipseProject model = projectConnection.getModel(EclipseProject.class);
-							Collection<ExternalDependency> modelDeps = new HashSet<ExternalDependency>();
-							
-							super.put(dep, model.getClasspath());
-							return modelDeps; 
-						}
-					}
-				} catch (Throwable t) {
-					GradleCore.log(t);
+	static class IvyLibraryEquivalency {
+		Map<HierarchicalEclipseProject, Collection<? extends ExternalDependency>> ivyLibraryAndTransitivesByProject = new HashMap<HierarchicalEclipseProject, Collection<? extends ExternalDependency>>();
+		Map<HierarchicalEclipseProject, ExternalDependency> ivyLibraryByProject = new HashMap<HierarchicalEclipseProject, ExternalDependency>();
+		
+        public Collection<? extends ExternalDependency> getLibraryAndTransitives(HierarchicalEclipseProject project) {
+			if(!ivyLibraryAndTransitivesByProject.containsKey(project))
+				computeLibrariesForCache(project, new NullProgressMonitor());
+			return ivyLibraryAndTransitivesByProject.get(project);
+        }
+        
+        public ExternalDependency getLibrary(HierarchicalEclipseProject project, IProgressMonitor monitor) {
+			if(!ivyLibraryByProject.containsKey(project))
+				computeLibrariesForCache(project, monitor);
+			return ivyLibraryByProject.get(project);
+        }
+        
+        private void computeLibrariesForCache(HierarchicalEclipseProject project, IProgressMonitor monitor) {
+			try {
+				ensureWorkspaceProjectResolverContentExists(GradleCore.create(project));
+				
+				ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(
+						new File(workspaceProjectResolverRoot(project) + "/workspace-resolver"),
+						monitor);
+				if(projectConnection == null) {
+					ivyLibraryAndTransitivesByProject.put(project, new ArrayList<ExternalDependency>());
+					return;
 				}
+				
+				EclipseProject model = projectConnection.getModel(EclipseProject.class);
+				ivyLibraryAndTransitivesByProject.put(project, model.getClasspath());
+				
+				// the fake gradle project will contain other deps (e.g. junit) in addition to the library representing the project
+				GradleModuleVersion projectMV = gradleModuleVersion(GradleCore.create(project));
+				for (ExternalDependency modelDep : model.getClasspath()) {
+					GradleModuleVersion depMV = modelDep.getGradleModuleVersion();
+					if(projectMV.getGroup().equals(depMV.getGroup()) && projectMV.getName().equals(depMV.getName())) {
+						ivyLibraryByProject.put(project, modelDep);
+					}
+				}
+			} catch (Throwable t) {
+				GradleCore.log(t);
 			}
-        	return null;
         }
 	};
+	
+	private static IvyLibraryEquivalency libraryEquivalency = new IvyLibraryEquivalency();
 	
 	public static GradleModuleVersion gradleModuleVersion(GradleProject project) {
 		return moduleVersionCache.get(project);
@@ -134,8 +148,12 @@ public class IvyUtils {
 		return null;
 	}
 	
-	public static Collection<? extends ExternalDependency> getLibraryEquivalent(HierarchicalEclipseProject dep) {
-		return ivyLibraryEquivalentCache.get(dep);
+	public static Collection<? extends ExternalDependency> getLibraryAndTransitives(HierarchicalEclipseProject dep) {
+		return libraryEquivalency.getLibraryAndTransitives(dep);
+	}
+	
+	public static ExternalDependency getLibrary(HierarchicalEclipseProject dep, IProgressMonitor monitor) {
+		return libraryEquivalency.getLibrary(dep, monitor);
 	}
 	
 	private static boolean moduleVersionMatches(GradleModuleVersion v1, GradleModuleVersion v2) {
@@ -147,7 +165,7 @@ public class IvyUtils {
 	}
 	
 	// TODO we don't ever clean up the resolver content we put in the .metadata folder here
-	private static void ensureWorkspaceProjectResolverContentExists(GradleProject project) {
+	private synchronized static void ensureWorkspaceProjectResolverContentExists(GradleProject project) {
 		try {
 			GradleProject rootProject = project.getRootProject();
 			
@@ -156,9 +174,19 @@ public class IvyUtils {
 			for (HierarchicalEclipseProject subproject : allProjectsInBuild) {
 				String uri = workspaceProjectResolverRoot(subproject);
 				FileUtils.deleteQuietly(new File(uri));
-				new File(uri).mkdirs();
+				new File(uri + "/workspace-resolver").mkdirs();
 				
 				try {
+					FileUtils.copyFile(new File(subproject.getProjectDirectory().getPath() + "/gradle.properties"), new File(uri + "/workspace-resolver/gradle.properties"));
+				} catch (IOException e) {
+					// If source file is missing, don't copy 
+				}
+				
+				try {
+					if(rootProject.equals(project)) {
+						copySingleProjectBuildGradle(rootProject, uri);
+						return;
+					}
 					FileUtils.copyFile(new File(rootProject.getLocation().getPath() + "/build.gradle"), new File(uri + "/build.gradle"));
 				} catch (IOException e) {
 					// If build.gradle is missing, don't copy
@@ -166,23 +194,16 @@ public class IvyUtils {
 				
 				if(rootProject.getSkeletalGradleModel().equals(subproject))
 					continue;
-				GradleModuleVersion compileDep = gradleModuleVersion(GradleCore.create(subproject));
-				if(compileDep == null)
-					continue;
-				
-				new File(uri + "/workspace-resolver").mkdirs();
 				
 				FileWriter buildOut = new FileWriter(new File(uri + "/workspace-resolver/build.gradle"));
 				buildOut.write("dependencies {\r\n");
-				buildOut.write("   compile '" + compileDep.getGroup() + ":" + compileDep.getName() + ":+'\r\n");
+				
+				GradleModuleVersion compileDep = gradleModuleVersion(GradleCore.create(subproject));
+				if(compileDep != null)
+					buildOut.write("   compile '" + compileDep.getGroup() + ":" + compileDep.getName() + ":+'\r\n");
+				
 				buildOut.write("}");
 				buildOut.close();
-				
-				try {
-					FileUtils.copyFile(new File(subproject.getProjectDirectory().getPath() + "/gradle.properties"), new File(uri + "/workspace-resolver/gradle.properties"));
-				} catch (IOException e) {
-					// If source file is missing, don't copy 
-				}
 				
 				FileWriter settingsOut = new FileWriter(new File(uri + "/settings.gradle"));
 				settingsOut.write("include \"workspace-resolver\"");
@@ -195,5 +216,18 @@ public class IvyUtils {
 		} catch (CoreException e) {
 			GradleCore.log(e);
 		}
+	}
+
+	/**
+	 * Copy single project build.gradle script, replacing dependencies { .. } with a single dependency representing the project
+	 * @param rootProject
+	 * @param uri
+	 * @throws IOException
+	 */
+	private static void copySingleProjectBuildGradle(GradleProject rootProject, String uri) throws IOException {
+		String buildGradleScript = FileUtils.readFileToString(new File(rootProject.getLocation().getPath() + "/build.gradle"));
+		// TODO JON replace dependencies with this single project
+		
+		FileUtils.writeStringToFile(new File(uri + "/workspace-resolver/build.gradle"), buildGradleScript);
 	}
 }

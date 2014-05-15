@@ -7,15 +7,18 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceChangeEvent;
 import org.eclipse.core.resources.IResourceChangeListener;
 import org.eclipse.core.resources.IResourceDelta;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.gradle.tooling.model.ExternalDependency;
 import org.springsource.ide.eclipse.gradle.core.GradleCore;
 import org.springsource.ide.eclipse.gradle.core.GradleProject;
+import org.springsource.ide.eclipse.gradle.core.classpathcontainer.FastOperationFailedException;
 import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspathContainerGroup;
-import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleProjectClassPathContainer;
 
 public class IvyProjectResolverWorkspaceListener implements IResourceChangeListener {
 	@Override
@@ -69,7 +72,7 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 			@Override
 			protected IStatus run(IProgressMonitor monitor) {
 				monitor.beginTask("Closing Gradle project" + project.getName(), IProgressMonitor.UNKNOWN);
-				updateRelatedProjects(project);
+				updateRelatedProjects(project, monitor);
 				monitor.done();
 				return Status.OK_STATUS;
 			}
@@ -82,20 +85,42 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 			@Override
 			protected IStatus run(IProgressMonitor monitor) {
 				monitor.beginTask("Opening Gradle project" + project.getName(), IProgressMonitor.UNKNOWN);
-				updateRelatedProjects(project);
+				updateRelatedProjects(project, monitor);
 				monitor.done();
 				return Status.OK_STATUS;
 			}
 		}.schedule();
     }
 	
-	private void updateRelatedProjects(final IProject project) {
-		for (GradleProject gradleProject : GradleCore.getGradleProjects()) {
-			if(gradleProject.getProject().equals(project))
+	private void updateRelatedProjects(final IProject project, IProgressMonitor monitor) {
+		GradleProject updatingProject = GradleCore.create(project);
+		
+		for (GradleProject possibleRelatedProject : GradleCore.getGradleProjects()) {
+			if(possibleRelatedProject.getProject().equals(project))
 				continue;
-			GradleProjectClassPathContainer projectCpContainer = gradleProject.getProjectClassPathContainer();
-			if(projectCpContainer != null && projectCpContainer.dependsOnProject(project))
-				GradleClasspathContainerGroup.requestUpdate(gradleProject.getProject(), false);
+			try {
+				if(possibleRelatedProject.dependsOn(updatingProject) || dependsOnThroughIvyDependency(possibleRelatedProject, updatingProject, monitor))
+					GradleClasspathContainerGroup.requestUpdate(possibleRelatedProject.getProject(), false);
+			} catch (FastOperationFailedException e) {
+				GradleCore.log(e);
+			} catch (CoreException e) {
+				GradleCore.log(e);
+			}
 		}
+	}
+	
+	private boolean dependsOnThroughIvyDependency(GradleProject depender, GradleProject dependee, IProgressMonitor monitor) {
+		try {
+			ExternalDependency library = IvyUtils.getLibrary(dependee.getSubproject(), monitor);
+			for (IClasspathEntry entry : depender.getDependencyComputer().getClassPath(monitor).toArray())
+				if(entry.equals(library))
+					return true;
+			for (IClasspathEntry entry : depender.getDependencyComputer().getProjectClassPath(monitor).toArray())
+				if(entry.equals(library))
+					return true;
+		} catch (CoreException e) {
+			GradleCore.log(e);
+		}
+		return false;
 	}
 }

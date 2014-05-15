@@ -88,13 +88,12 @@ public abstract class GradleModelProvider {
 		return GradleCore.getInstance().getPreferences().getGradleUserHome();
 	}
 	
-	public static ProjectConnection getGradleConnector(File projectLoc) {
-		return getGradleConnector(projectLoc, getDistributionPref(), getGradleUserHomePref(), null);
+	public static ProjectConnection getGradleConnector(File projectLoc, IProgressMonitor monitor) {
+		return getGradleConnector(projectLoc, getDistributionPref(), getGradleUserHomePref(), monitor);
 	}
 	
 	private static ProjectConnection getGradleConnector(File projectLoc, URI distributionPref, File gradleUserHomePref, IProgressMonitor monitor) {
-		if(monitor != null)
-			monitor.beginTask("Connection to Gradle", 1);
+		monitor.beginTask("Connection to Gradle", 1);
 		try {
 			GradleConnector connector = GradleConnector.newConnector();
 			if (gradleUserHomePref!=null) {
@@ -115,13 +114,11 @@ public abstract class GradleModelProvider {
 				}
 			}
 			
-			if(monitor != null)
-				monitor.subTask("Creating connector"); 
+			monitor.subTask("Creating connector"); 
 			connector.forProjectDirectory(projectLoc);
 			return connector.connect();
 		} finally {
-			if(monitor != null)
-				monitor.done();
+			monitor.done();
 		}
 	}
 

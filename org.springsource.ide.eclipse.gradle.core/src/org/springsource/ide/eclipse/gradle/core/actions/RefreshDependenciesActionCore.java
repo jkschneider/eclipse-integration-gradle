@@ -47,7 +47,7 @@ public class RefreshDependenciesActionCore {
 					final List<GradleProject> gps = new ArrayList<GradleProject>(projects.size());
 					for (IProject p : projects) {
 						GradleProject gp = GradleCore.create(p);
-//						gp.invalidateGradleModel(); // TODO JON why would we want to invalidate the model ever?
+						gp.invalidateGradleModel();
 						gps.add(gp);
 						monitor.worked(workUnit);
 					}

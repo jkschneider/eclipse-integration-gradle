@@ -33,26 +33,6 @@ public class GradleProjectManager {
 	 */
 	private Map<String, GradleProject> gradleProjects = new HashMap<String, GradleProject>();
 
-//	/**
-//	 * Get the GradleProject instance associated with a given IProject instance. Forces the creation
-//	 * of a new instance of one doesn't yet exist. 
-//	 */
-//	public synchronized GradleProject getOrCreate(IProject project) {
-//		try {
-//			Assert.isNotNull(project);
-//			File location = project.getLocation().toFile().getCanonicalFile();
-//			Assert.isLegal(location.exists());
-//			GradleProject existing = gradleProjects.get(location.getPath());
-//			if (existing==null) {
-//				existing = new GradleProject(location);
-//				gradleProjects.put(location.getPath(), existing);
-//			}
-//			return existing;
-//		} catch (IOException e) {
-//			throw new IllegalStateException(e);
-//		}
-//	}
-
 	public synchronized GradleProject getOrCreate(File location) {
 		File canonicalFile = toCanonicalFile(location);
 		GradleProject project = get(canonicalFile);
