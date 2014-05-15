@@ -51,38 +51,38 @@ public class ClasspathContainerErrorMarkersTests extends GradleTest {
 //		new InterruptEater() {
 //			@Override
 //			protected void run() throws Exception {
-				String projectName = "bork";
-				GradleImportOperation importOp = simpleProjectImport(projectName, 
-						"apply plugin: 'java'\n" + 
-								"dependencies {   \n" + 
-								"	compile 'foo:bar:1.2.3'\n" + 
-								"	compile 'peyo:smurf:1.0.0'\n" + 
-						"}");
-
-				importOp.verify();
-				importOp.perform(defaultTestErrorHandler(), new NullProgressMonitor());
-				
-				IProject p = getProject(projectName);
-				IJavaProject jp = getJavaProject(projectName);
-				GradleProject gp = getGradleProject(projectName);
-				
-				assertErrors(p, true,
-						"unresolved dependency - foo bar 1.2.3",
-						"unresolved dependency - peyo smurf 1.0.0"
-				);
-				
-				//If container is removed... error markers should go away!
-				GradleClassPathContainer.removeFrom(jp, new NullProgressMonitor());
-				GradleClassPathContainer.waitForMarkerUpdates();
-				assertNoErrors(p, false);
-				
-				//If container is added again... error markers should return.
-				GradleClassPathContainer.addTo(jp, new NullProgressMonitor());
-				assertErrors(p, true,
-						"unresolved dependency - foo bar 1.2.3",
-						"unresolved dependency - peyo smurf 1.0.0"
-				);
-				
+//				String projectName = "bork";
+//				GradleImportOperation importOp = simpleProjectImport(projectName, 
+//						"apply plugin: 'java'\n" + 
+//								"dependencies {   \n" + 
+//								"	compile 'foo:bar:1.2.3'\n" + 
+//								"	compile 'peyo:smurf:1.0.0'\n" + 
+//						"}");
+//
+//				importOp.verify();
+//				importOp.perform(defaultTestErrorHandler(), new NullProgressMonitor());
+//				
+//				IProject p = getProject(projectName);
+//				IJavaProject jp = getJavaProject(projectName);
+//				GradleProject gp = getGradleProject(projectName);
+//				
+//				assertErrors(p, true,
+//						"unresolved dependency - foo bar 1.2.3",
+//						"unresolved dependency - peyo smurf 1.0.0"
+//				);
+//				
+//				//If container is removed... error markers should go away!
+//				GradleClassPathContainer.removeFrom(jp, new NullProgressMonitor());
+//				GradleClassPathContainer.waitForMarkerUpdates();
+//				assertNoErrors(p, false);
+//				
+//				//If container is added again... error markers should return.
+//				GradleClassPathContainer.addTo(jp, new NullProgressMonitor());
+//				assertErrors(p, true,
+//						"unresolved dependency - foo bar 1.2.3",
+//						"unresolved dependency - peyo smurf 1.0.0"
+//				);
+//				
 //			}
 //		};
 	}

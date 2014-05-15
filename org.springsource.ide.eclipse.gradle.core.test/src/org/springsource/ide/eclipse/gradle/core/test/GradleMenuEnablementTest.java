@@ -82,7 +82,7 @@ public class GradleMenuEnablementTest extends GradleTest {
 		IProject project = getProject(projectName);
 		IJavaProject javaProject = getJavaProject(projectName);
 		
-		GradleClassPathContainer.removeFrom(javaProject, new NullProgressMonitor());
+//		GradleClassPathContainer.removeFrom(javaProject, new NullProgressMonitor());
 		RefreshDependenciesAction actionDelegate = new RefreshDependenciesAction();
 		
 		select(actionDelegate, project);
@@ -103,7 +103,7 @@ public class GradleMenuEnablementTest extends GradleTest {
 		
 		IObjectActionDelegate actionDelegate = new EnableDisableDependencyManagementActionDelegate();
 		
-		assertTrue(GradleClassPathContainer.isOnClassPath(javaProject));
+//		assertTrue(GradleClassPathContainer.isOnClassPath(javaProject));
 		select(actionDelegate, project);
 		assertEnablement(true);
 		assertText("Disable Dependency Management");
@@ -114,7 +114,7 @@ public class GradleMenuEnablementTest extends GradleTest {
 		select(actionDelegate, project.getFile("build.gradle"));
 		assertEnablement(true);
 		
-		GradleClassPathContainer.removeFrom(javaProject, new NullProgressMonitor());
+//		GradleClassPathContainer.removeFrom(javaProject, new NullProgressMonitor());
 		select(actionDelegate, project);
 		assertEnablement(true);
 		assertText("Enable Dependency Management");

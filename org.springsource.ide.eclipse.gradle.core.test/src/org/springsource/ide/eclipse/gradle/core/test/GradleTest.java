@@ -156,7 +156,7 @@ public abstract class GradleTest extends TestCase {
 		if (build) {
 			project.build(IncrementalProjectBuilder.FULL_BUILD, new NullProgressMonitor());
 		}
-		GradleClassPathContainer.waitForMarkerUpdates();
+//		GradleClassPathContainer.waitForMarkerUpdates();
 		IMarker[] problems = project.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
 		for (IMarker problem : problems) {
 			if (problem.getAttribute(IMarker.SEVERITY, 0) >= IMarker.SEVERITY_ERROR) {
@@ -205,7 +205,7 @@ public abstract class GradleTest extends TestCase {
 		if (build) {
 			project.build(IncrementalProjectBuilder.FULL_BUILD, new NullProgressMonitor());
 		}
-		GradleClassPathContainer.waitForMarkerUpdates();
+//		GradleClassPathContainer.waitForMarkerUpdates();
 		IMarker[] problems = project.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
 		Set<String> notSeenYet = new HashSet<String>(Arrays.asList(expectedRegexps));
 		for (IMarker problem : problems) {
