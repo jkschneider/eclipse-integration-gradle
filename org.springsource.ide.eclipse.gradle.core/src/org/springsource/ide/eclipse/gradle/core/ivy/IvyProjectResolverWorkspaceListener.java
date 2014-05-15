@@ -8,9 +8,11 @@ import org.eclipse.core.resources.IResourceChangeEvent;
 import org.eclipse.core.resources.IResourceChangeListener;
 import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.IClasspathEntry;
@@ -112,11 +114,13 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 	private boolean dependsOnThroughIvyDependency(GradleProject depender, GradleProject dependee, IProgressMonitor monitor) {
 		try {
 			ExternalDependency library = IvyUtils.getLibrary(dependee.getSubproject(), monitor);
+			IPath jarPath = new Path(library.getFile().getAbsolutePath()); 
+			
 			for (IClasspathEntry entry : depender.getDependencyComputer().getClassPath(monitor).toArray())
-				if(entry.equals(library))
+				if(entry.getPath().equals(jarPath))
 					return true;
 			for (IClasspathEntry entry : depender.getDependencyComputer().getProjectClassPath(monitor).toArray())
-				if(entry.equals(library))
+				if(entry.getPath().equals(jarPath) || entry.getPath().equals(dependee.getProject().getFullPath()))
 					return true;
 		} catch (CoreException e) {
 			GradleCore.log(e);

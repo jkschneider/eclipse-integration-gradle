@@ -45,6 +45,9 @@ public class IvyUtils {
 				String projectPath = project.getLocation().getAbsolutePath();
 
 				File file = new File(projectPath + "/build/publications/ivy/ivy.xml");
+				if(!file.exists())
+					return null;
+				
 				reader = new BufferedReader(new FileReader(file));
 				String line;
 				while((line = reader.readLine()) != null) {
