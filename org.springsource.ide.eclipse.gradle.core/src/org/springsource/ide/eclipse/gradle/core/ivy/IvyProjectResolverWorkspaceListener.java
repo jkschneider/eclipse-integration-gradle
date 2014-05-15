@@ -95,7 +95,7 @@ public class IvyProjectResolverWorkspaceListener implements IResourceChangeListe
 				continue;
 			GradleProjectClassPathContainer projectCpContainer = gradleProject.getProjectClassPathContainer();
 			if(projectCpContainer != null && projectCpContainer.dependsOnProject(project))
-				GradleClasspathContainerGroup.requestUpdate(project, false);
+				GradleClasspathContainerGroup.requestUpdate(gradleProject.getProject(), false);
 		}
 	}
 }

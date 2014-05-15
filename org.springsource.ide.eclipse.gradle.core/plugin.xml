@@ -10,7 +10,7 @@
       </classpathContainerInitializer>
       <classpathContainerInitializer
             class="org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleProjectClasspathContainerInitializer"
-            id="org.springsource.ide.eclipse.gradle.classpathcontainer">
+            id="org.springsource.ide.eclipse.gradle.projectclasspathcontainer">
       </classpathContainerInitializer>
       <classpathContainerInitializer
             class="org.springsource.ide.eclipse.gradle.core.dsld.GradleDSLDClasspathContainerInitializer"

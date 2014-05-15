@@ -136,8 +136,10 @@ public class GradleProject {
 	public void refreshDependencies(IProgressMonitor monitor) throws CoreException {
 		monitor.beginTask("Refresh dependencies "+getName(), 3);
 		try {
-			refreshClasspathContainer(new SubProgressMonitor(monitor, 1));
-//			WTPUtil.addWebLibraries(this); only doing this on project import for now.
+			IProject project = getProject();
+			if (project != null) {
+				GradleClasspathContainerGroup.requestUpdate(project, false);
+			}
 		} finally {
 			monitor.done();
 		}
@@ -151,23 +153,6 @@ public class GradleProject {
 		return false;
 	}
 	
-	/**
-	 * Refreshes the contents of the classpath container to bring it in synch with the gradleModel.
-	 * (Note that this doesn't force the gradleModel itself to be updated!)
-	 */
-	private void refreshClasspathContainer(IProgressMonitor monitor) throws CoreException {
-		monitor.beginTask("Refresh Classpath Container", 1);
-		try {
-			IProject project = getProject();
-			if (project != null) {
-				//TODO: the requestUpdateFor is asynchronous... make it synchronous!
-				GradleClasspathContainerGroup.requestUpdate(project, false);
-			}
-		} finally {
-			monitor.done();
-		}
-	}
-
 	/**
 	 * Reconfigures the project's source folders in Java classpath based on current gradle model.
 	 * (Note that this doesn't force the gradle model itself to be updated!)

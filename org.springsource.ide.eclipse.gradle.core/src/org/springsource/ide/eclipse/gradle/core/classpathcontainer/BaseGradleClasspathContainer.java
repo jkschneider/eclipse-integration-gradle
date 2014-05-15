@@ -141,6 +141,7 @@ public abstract class BaseGradleClasspathContainer implements IClasspathContaine
 	}
 	
 	public void refreshMarkers() {
+		project.getDependencyComputer().clearClasspath();
 		oldModel = null; //Forces recomputation of entries on next 'getClasspathEntries
 		getClasspathEntries(); //The markers are now refreshed as a side effect.
 	}

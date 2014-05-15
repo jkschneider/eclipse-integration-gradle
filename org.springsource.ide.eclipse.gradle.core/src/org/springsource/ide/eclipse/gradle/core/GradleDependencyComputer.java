@@ -150,6 +150,7 @@ public class GradleDependencyComputer {
 	
 	public void clearClasspath() {
 		classpath = null;
+		projectClasspath = null;
 	}
 	
 	public Set<IProject> getProjectDependencyMaybes() {

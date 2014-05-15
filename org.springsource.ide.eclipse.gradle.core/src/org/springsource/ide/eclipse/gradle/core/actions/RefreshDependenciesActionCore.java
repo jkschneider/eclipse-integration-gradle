@@ -47,7 +47,7 @@ public class RefreshDependenciesActionCore {
 					final List<GradleProject> gps = new ArrayList<GradleProject>(projects.size());
 					for (IProject p : projects) {
 						GradleProject gp = GradleCore.create(p);
-						gp.invalidateGradleModel();
+//						gp.invalidateGradleModel(); // TODO JON why would we want to invalidate the model ever?
 						gps.add(gp);
 						monitor.worked(workUnit);
 					}
@@ -58,7 +58,6 @@ public class RefreshDependenciesActionCore {
 						@Override
 						public void doit(Continuation<Void> cont, IProgressMonitor monitor) throws Exception {
 							for (GradleProject gp : gps) {
-								gp.getClassPathContainer().refreshMarkers();
 								gp.refreshDependencies(new SubProgressMonitor(monitor, 1));
 							}
 							cont.apply(null);
