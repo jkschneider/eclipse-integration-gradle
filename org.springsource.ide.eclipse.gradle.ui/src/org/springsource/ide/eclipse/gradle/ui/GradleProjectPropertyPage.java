@@ -69,7 +69,7 @@ public class GradleProjectPropertyPage extends PropertyPage implements IWorkbenc
             group1.setText("Classpath sorting strategy");
             group1.setLayout(new GridLayout(2, true));
             enableSortingButton = new Button(group1, SWT.RADIO);
-            enableSortingButton.setText("Alphabetically by path");
+            enableSortingButton.setText("Alphabetically by name");
             Button disableSortingButton = new Button(group1, SWT.RADIO);
             disableSortingButton.setText("As returned by build script");
             if (project.getProjectPreferences().getEnableClasspathEntrySorting()) {
