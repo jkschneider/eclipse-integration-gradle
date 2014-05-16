@@ -101,7 +101,8 @@ public class IvyUtils {
         public Collection<? extends ExternalDependency> getLibraryAndTransitives(HierarchicalEclipseProject project) {
 			if(!ivyLibraryAndTransitivesByProject.containsKey(project))
 				computeLibrariesForCache(project, new NullProgressMonitor());
-			return ivyLibraryAndTransitivesByProject.get(project);
+			Collection<? extends ExternalDependency> libAndTrans = ivyLibraryAndTransitivesByProject.get(project);
+			return libAndTrans == null ? new ArrayList<ExternalDependency>() : libAndTrans;
         }
         
         public ExternalDependency getLibrary(HierarchicalEclipseProject project, IProgressMonitor monitor) {
