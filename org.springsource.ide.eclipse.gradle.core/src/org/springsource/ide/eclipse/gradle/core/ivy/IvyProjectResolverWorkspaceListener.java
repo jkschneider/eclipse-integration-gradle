@@ -25,6 +25,9 @@ import org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClasspa
 public class IvyProjectResolverWorkspaceListener implements IResourceChangeListener {
 	@Override
 	public void resourceChanged(IResourceChangeEvent event) {
+		if(!GradleCore.getInstance().getPreferences().isTriggerOnProjectCloseOpen())
+			return;
+		
 		try {
             if (event.getType() == IResourceChangeEvent.PRE_CLOSE || event.getType() == IResourceChangeEvent.PRE_DELETE) {
                 IResource res = event.getResource();

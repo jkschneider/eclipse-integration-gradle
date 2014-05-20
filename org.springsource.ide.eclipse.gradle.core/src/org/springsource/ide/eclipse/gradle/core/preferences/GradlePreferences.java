@@ -73,6 +73,9 @@ public class GradlePreferences extends AbstractGradlePreferences implements IPre
 	private static final String EXPORT_DEPENDENCIES =  GradlePreferences.class.getName()+".EXPORT_DEPENDENCIES";
 	public static final boolean DEFAULT_EXPORT_DEPENDENCIES =  true;
 
+	private static final String TRIGGER_ON_PROJECT_CLOSE_OPEN =  GradlePreferences.class.getName()+".TRIGGER_ON_PROJECT_CLOSE_OPEN";
+	public static final boolean DEFAULT_TRIGGER_ON_PROJECT_CLOSE_OPEN =  false;
+	
 	private static URI builtInDistribution = null;
 
 	private RegexpListDeploymentExclusions cachedExclusions;
@@ -347,5 +350,13 @@ public class GradlePreferences extends AbstractGradlePreferences implements IPre
 
 	public void setExportDependencies(boolean e) {
 		put(EXPORT_DEPENDENCIES, e);
+	}
+	
+	public boolean isTriggerOnProjectCloseOpen() {
+		return get(TRIGGER_ON_PROJECT_CLOSE_OPEN, DEFAULT_TRIGGER_ON_PROJECT_CLOSE_OPEN);
+	}
+	
+	public void setTriggerOnProjectCloseOpen(boolean e) {
+		put(TRIGGER_ON_PROJECT_CLOSE_OPEN, e);
 	}
 }
