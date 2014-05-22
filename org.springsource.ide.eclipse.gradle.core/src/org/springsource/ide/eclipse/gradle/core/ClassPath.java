@@ -16,10 +16,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -89,15 +91,15 @@ public class ClassPath {
 	 */
 	private Map<Integer, Collection<IClasspathEntry>> entryMap = new HashMap<Integer, Collection<IClasspathEntry>>(kindOrdering.length);
 	
-	private Map<GradleModuleVersion, IClasspathEntry> libraryByModuleVersion = new TreeMap<GradleModuleVersion, IClasspathEntry>(
-			new Comparator<GradleModuleVersion>() {
-				@Override
-				public int compare(GradleModuleVersion mv1, GradleModuleVersion mv2) {
-					String mv1Stringified = mv1 == null ? "" : mv1.getName() + ":" + mv1.getGroup();
-					String mv2Stringified = mv2 == null ? "" : mv2.getName() + ":" + mv2.getGroup();
-					return mv1Stringified.compareTo(mv2Stringified);
-				}
-			});
+	private Map<GradleModuleVersion, Set<IClasspathEntry>> libraryByModuleVersion = new TreeMap<GradleModuleVersion, Set<IClasspathEntry>>(
+		new Comparator<GradleModuleVersion>() {
+			@Override
+			public int compare(GradleModuleVersion mv1, GradleModuleVersion mv2) {
+				String mv1Stringified = mv1 == null ? "" : mv1.getName() + ":" + mv1.getGroup();
+				String mv2Stringified = mv2 == null ? "" : mv2.getName() + ":" + mv2.getGroup();
+				return mv1Stringified.compareTo(mv2Stringified);
+			}
+		});
 
 	public class ClasspathEntryComparator implements Comparator<IClasspathEntry> {
 		public int compare(IClasspathEntry e1, IClasspathEntry e2) {
@@ -293,22 +295,29 @@ public class ClassPath {
 	}
 	
 	private void rememberLibraryEntry(ExternalDependency gEntry, IClasspathEntry entry) {
-		libraryByModuleVersion.put(gEntry.getGradleModuleVersion(), entry);
+		GradleModuleVersion mv = gEntry.getGradleModuleVersion();
+		Set<IClasspathEntry> entries = libraryByModuleVersion.get(mv);
+		if(entries == null) {
+			entries = new HashSet<IClasspathEntry>();
+			libraryByModuleVersion.put(mv, entries);
+		}
+		entries.add(entry);
 	}
 	
 	public void addJarEntry(ExternalDependency gEntry) {
 		IClasspathEntry newLibraryEntry = buildJarEntry(gEntry);
 		add(newLibraryEntry);
-		if (newLibraryEntry.toString().contains("unresolved dependency")) {
-			debug("entry: "+newLibraryEntry);
-		}
 		rememberLibraryEntry(gEntry, newLibraryEntry);
 	}
 	
+	public void addJarEntryFromCache(ExternalDependency gEntry) {
+		Set<IClasspathEntry> entries = libraryByModuleVersion.get(gEntry.getGradleModuleVersion());
+		if(entries != null)
+			for(IClasspathEntry entry : entries)
+				add(entry);
+	}
+	
 	private IClasspathEntry buildJarEntry(ExternalDependency gEntry) {
-		IClasspathEntry entry = libraryByModuleVersion.get(gEntry.getGradleModuleVersion());
-		if(entry != null) return entry;
-		
 		// Get the location of a source jar, if any.
 		IPath sourceJarPath = null;
 		File sourceJarFile = gEntry.getSource();

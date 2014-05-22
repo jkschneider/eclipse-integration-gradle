@@ -35,7 +35,8 @@ public class DependencyManagementSection extends PrefsPageSection {
 	
 	Text autoRefreshDelayText;
 	Button enableAutoRefreshButton;
-
+	Button enableTriggerOnProjectCloseOpen;
+	
 	private Button exportDependencies;
 	
 	public DependencyManagementSection(GradlePreferencesPage owner) {
@@ -47,6 +48,7 @@ public class DependencyManagementSection extends PrefsPageSection {
 		setEnableAutoRefresh(getEnableAutoRefreshInPage());
 		setAutoRefreshDelay(getAutoRefreshDelayInPage());
 		setExportDependencies(getExportDependenciesInPage());
+		setTriggerOnProjectCloseOpenInPage(getTriggerOnProjectCloseOpenInPage());
 		return true;
 	}
 
@@ -55,8 +57,7 @@ public class DependencyManagementSection extends PrefsPageSection {
 		setEnableAutoRefreshInPage(GradlePreferences.DEFAULT_AUTO_REFRESH_DEPENDENCIES);
 		setAutoRefreshDelayInPage(GradlePreferences.DEFAULT_AUTO_REFRESH_DELAY);
 		setExportDependenciesInPage(GradlePreferences.DEFAULT_EXPORT_DEPENDENCIES);
-		// TODO Auto-generated method stub
-
+		setTriggerOnProjectCloseOpenInPage(GradlePreferences.DEFAULT_TRIGGER_ON_PROJECT_CLOSE_OPEN);
 	}
 
 	@Override
@@ -87,7 +88,6 @@ public class DependencyManagementSection extends PrefsPageSection {
         setExportDependenciesInPage(getExportDependencies());
 		
 		//Enable auto refresh checkbox
-        
         enableAutoRefreshButton = new Button(composite, SWT.CHECK);
         enableAutoRefreshButton.setText("Enable automatic refresh. Delay (ms) : ");
         enableAutoRefreshButton.setToolTipText("Automatically refresh 'Gradle Depencies' when any .gradle file is changed");
@@ -98,16 +98,28 @@ public class DependencyManagementSection extends PrefsPageSection {
 				enableDisableWidgets();
 			}
         });
-
-		setEnableAutoRefreshInPage(getEnableAutoRefresh());
-
+        setEnableAutoRefreshInPage(getEnableAutoRefresh());
+        
 		//Refresh delay text widget
 		autoRefreshDelayText = new Text(composite, SWT.BORDER);
 		autoRefreshDelayText.setToolTipText("Delay between change event and triggered auto refresh.");
 		grabHorizontal.applyTo(composite);
 		grabHorizontal.applyTo(autoRefreshDelayText);
-		
 		setAutoRefreshDelayInPage(getAutoRefreshDelay());
+		
+		//Enable auto refresh checkbox
+        enableTriggerOnProjectCloseOpen = new Button(composite, SWT.CHECK);
+        enableTriggerOnProjectCloseOpen.setText("Enable automatic refresh on project close and open");
+        enableTriggerOnProjectCloseOpen.setToolTipText("Automatically refresh 'Gradle Depencies' on related projects when projects are closed or opened");
+        enableTriggerOnProjectCloseOpen.addSelectionListener(new SelectionListener() {
+			public void widgetDefaultSelected(SelectionEvent arg0) {
+			}
+			public void widgetSelected(SelectionEvent e) {
+				enableDisableWidgets();
+			}
+        });
+        setTriggerOnProjectCloseOpenInPage(getTriggerOnProjectCloseOpenInPage());
+		
 		enableDisableWidgets();
 	}
 
@@ -123,6 +135,12 @@ public class DependencyManagementSection extends PrefsPageSection {
 	}
 	
 	////////////////// 'in page' getters and setters //////////////////////////
+	public boolean getTriggerOnProjectCloseOpenInPage() {
+		if (enableTriggerOnProjectCloseOpen!=null) {
+			return enableTriggerOnProjectCloseOpen.getSelection();
+		}
+		return GradlePreferences.DEFAULT_TRIGGER_ON_PROJECT_CLOSE_OPEN;
+	}
 	
 	public boolean getEnableAutoRefreshInPage() {
 		if (enableAutoRefreshButton!=null) {
@@ -183,6 +201,7 @@ public class DependencyManagementSection extends PrefsPageSection {
 		GradleCore.getInstance().getPreferences().setAutoRefreshDelay(v);
 	}
 
-
-
+	private void setTriggerOnProjectCloseOpenInPage(boolean e) {
+		GradleCore.getInstance().getPreferences().setTriggerOnProjectCloseOpen(e);
+	}
 }

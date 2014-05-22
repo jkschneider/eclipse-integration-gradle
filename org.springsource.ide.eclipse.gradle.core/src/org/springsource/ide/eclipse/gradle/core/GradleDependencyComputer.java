@@ -120,7 +120,7 @@ public class GradleDependencyComputer {
 				}
 				
 				for(ExternalDependency library : IvyUtils.getLibraryAndTransitives(dep.getTargetProject()))
-					projectClasspath.addJarEntry(library); 
+					projectClasspath.addJarEntryFromCache(library); 
 			}
 		} catch (CoreException e) {
 			GradleCore.log(e);

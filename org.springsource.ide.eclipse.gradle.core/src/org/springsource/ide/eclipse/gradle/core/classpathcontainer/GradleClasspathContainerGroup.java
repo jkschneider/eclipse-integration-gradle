@@ -41,8 +41,8 @@ public class GradleClasspathContainerGroup {
 				
 				classpath.setOn(project, new SubProgressMonitor(mon, 9));
 				
-				gradleProject.getClassPathContainer().refreshMarkers();
-				gradleProject.getProjectClassPathContainer().refreshMarkers();
+				gradleProject.getClassPathContainer().clearClasspath();
+				gradleProject.getProjectClassPathContainer().clearClasspath();
 			}
 		} finally {
 			mon.done();
@@ -109,8 +109,8 @@ public class GradleClasspathContainerGroup {
 						// TODO JON is this what causes "refresh project model" every time?
 						gradleProject.getGradleModel(monitor); // Forces initialisation of the model.
 						
-						gradleProject.getClassPathContainer().refreshMarkers();
-						gradleProject.getProjectClassPathContainer().refreshMarkers();
+						gradleProject.getClassPathContainer().clearClasspath();
+						gradleProject.getProjectClassPathContainer().clearClasspath();
 						
 						// Makes JDT get our class path initialiser to run again.
 						if(gradleProject.getProjectClassPathContainer() != null)
