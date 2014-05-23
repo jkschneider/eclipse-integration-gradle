@@ -120,10 +120,15 @@ public class GradleCore extends Plugin {
 		if (gradlePreferences==null) {
 			migrateLegacyPreferences(OLD_PLUGIN_ID, PLUGIN_ID);
 			gradlePreferences = new GradlePreferences(InstanceScope.INSTANCE.getNode(PLUGIN_ID));
+			forceExportOn(gradlePreferences);
 		}
 		return gradlePreferences;
 	}
 
+	private void forceExportOn(GradlePreferences gradlePreferences) {
+		gradlePreferences.setExportDependencies(true);
+	}
+	
 	private void migrateLegacyPreferences(String oldPluginId, String pluginId) {
 		IEclipsePreferences oldPrefs = InstanceScope.INSTANCE.getNode(OLD_PLUGIN_ID);
 		IEclipsePreferences newPrefs = InstanceScope.INSTANCE.getNode(PLUGIN_ID);

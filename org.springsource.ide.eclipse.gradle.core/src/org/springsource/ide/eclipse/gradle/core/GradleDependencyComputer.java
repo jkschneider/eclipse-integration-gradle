@@ -73,13 +73,10 @@ public class GradleDependencyComputer {
 					if (project.getProjectPreferences().getRemapJarsToIvyProjects())
 						projectDep = IvyUtils.getIvyProject(gEntry);
 					
-					if (projectDep != null) {
-						projectClasspath.rememberLibraryEntry(gEntry);
+					if (projectDep != null)
 						projectClasspath.addProjectEntry(projectDep);
-					}
 					else
 						classpath.addJarEntry(gEntry);
-					
 				} else {
 					//'non jar' entries may happen when project has a dependency on a sourceSet's output folder.
 					//See http://issues.gradle.org/browse/GRADLE-1766
@@ -120,7 +117,7 @@ public class GradleDependencyComputer {
 				}
 				
 				for(ExternalDependency library : IvyUtils.getLibraryAndTransitives(dep.getTargetProject()))
-					projectClasspath.addJarEntryFromCache(library); 
+					projectClasspath.addJarEntry(library); 
 			}
 		} catch (CoreException e) {
 			GradleCore.log(e);
