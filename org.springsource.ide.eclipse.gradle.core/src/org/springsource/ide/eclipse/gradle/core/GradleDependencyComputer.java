@@ -67,11 +67,7 @@ public class GradleDependencyComputer {
 				File file = gEntry.getFile();
 				IPath jarPath = new Path(file.getAbsolutePath()); 
 				if (jarPath.lastSegment()!=null && jarPath.lastSegment().endsWith(".jar")) {
-					IProject projectDep = null;
-					if (project.getProjectPreferences().getRemapJarsToMavenProjects())
-						projectDep = M2EUtils.getMavenProject(gEntry);
-					if (project.getProjectPreferences().getRemapJarsToIvyProjects())
-						projectDep = IvyUtils.getIvyProject(gEntry);
+					IProject projectDep = getProjectFromExternalDependency(gEntry);
 					
 					if (projectDep != null)
 						projectClasspath.addProjectEntry(projectDep);
@@ -116,14 +112,33 @@ public class GradleDependencyComputer {
 					continue;
 				}
 				
-				for(ExternalDependency library : IvyUtils.getLibraryAndTransitives(dep.getTargetProject()))
-					projectClasspath.addJarEntry(library); 
+				for(ExternalDependency library : IvyUtils.getLibraryAndTransitives(dep.getTargetProject()))	{
+					workspaceProject = getProjectFromExternalDependency(library);
+					
+					if(workspaceProject != null && workspaceProject.isOpen()) {
+						// this is a project reference already
+					}
+					else
+						projectClasspath.addJarEntry(library);
+				}
 			}
 		} catch (CoreException e) {
 			GradleCore.log(e);
 		} finally {
 			markers.schedule();
 		}
+	}
+
+	private IProject getProjectFromExternalDependency(
+			ExternalDependency gEntry) {
+		
+		IProject projectDep = null;
+		
+		if (project.getProjectPreferences().getRemapJarsToMavenProjects())
+			projectDep = M2EUtils.getMavenProject(gEntry);
+		if (project.getProjectPreferences().getRemapJarsToIvyProjects())
+			projectDep = IvyUtils.getIvyProject(gEntry);
+		return projectDep;
 	}
 	
 	public void clearClasspath() {
