@@ -141,6 +141,11 @@ public class GradleDependencyComputer {
 		return projectDep;
 	}
 	
+	public void clearCache() {
+		if (project.getProjectPreferences().getRemapJarsToIvyProjects())			
+			IvyUtils.clearDependencyCache();
+	}
+	
 	public void clearClasspath() {
 		classpath = null;
 		projectClasspath = null;

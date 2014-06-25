@@ -593,8 +593,12 @@ public class GradleProject {
 	public void invalidateGradleModel() {
 		GradleModelProvider provider = modelProvider;
 		if (provider!=null) {
-			provider.invalidate();
+			provider.invalidate();			
 		}
+		
+		if (dependencyComputer != null)
+			dependencyComputer.clearCache();
+		
 	}
 
 	/**

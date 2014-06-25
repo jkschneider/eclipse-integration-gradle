@@ -54,6 +54,7 @@ public class RefreshDependenciesActionCore {
 					for (GradleProject gp : gps) {
 						gp.getGradleModel(new SubProgressMonitor(monitor, workUnit));
 					}
+					
 					JobUtil.schedule(new Continuable("Refresh project dependencies", projects.size(), cont) {
 						@Override
 						public void doit(Continuation<Void> cont, IProgressMonitor monitor) throws Exception {

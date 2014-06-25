@@ -1,5 +1,8 @@
 package org.springsource.ide.eclipse.gradle.core.classpathcontainer;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -18,7 +21,7 @@ import org.springsource.ide.eclipse.gradle.core.GradleProject;
 import org.springsource.ide.eclipse.gradle.core.wtp.WTPUtil;
 
 public class GradleClasspathContainerGroup {
-	private static Job job;
+	private static Map<IProject, Job> inProgressJobs = new HashMap<IProject, Job>();
 	
 	/**
 	 * Adds a {@link GradleClassPathContainer} entry to the project's classpath.
@@ -92,11 +95,11 @@ public class GradleClasspathContainerGroup {
 	 * @return Reference to the job that is doing the update, in case caller cares to wait for it to finish.
 	 */
 	public static synchronized Job requestUpdate(final IProject project, boolean popupProgress) {
-		if (job!=null) {
-			return job; // A job is already scheduled. Don't schedule another job!
+		if (inProgressJobs.containsKey(project)) {
+			return inProgressJobs.get(project); // A job is already scheduled. Don't schedule another job!
 		}
 
-		job = new Job("Update Gradle Classpath for "+ project.getName()) {
+		Job job = new Job("Update Gradle Classpath for "+ project.getName()) {
 
 			@Override
 			public IStatus run(IProgressMonitor monitor) {
@@ -123,7 +126,7 @@ public class GradleClasspathContainerGroup {
 					return new Status(IStatus.ERROR, GradleCore.PLUGIN_ID, "Error while initializing classpath container", e);
 				} finally {
 					monitor.done();
-					job = null;
+					inProgressJobs.remove(project);
 				}
 			}
 		};
@@ -131,6 +134,7 @@ public class GradleClasspathContainerGroup {
 		job.setPriority(Job.BUILD);
 		job.setRule(ResourcesPlugin.getWorkspace().getRuleFactory().buildRule());
 		job.schedule();
+		inProgressJobs.put(project, job);
 		return job;
 	}
 }

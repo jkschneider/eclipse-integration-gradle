@@ -269,7 +269,7 @@ public abstract class GradleModelProvider {
 			models = null;
 			type = null;
 			failedType = null; //Set if a model build for this type failed
-			error = null; // Set at the same time as failedType
+			error = null; // Set at the same time as failedType			
 		}
 
 		private boolean satisfies(Class<? extends HierarchicalEclipseProject> requiredType) {

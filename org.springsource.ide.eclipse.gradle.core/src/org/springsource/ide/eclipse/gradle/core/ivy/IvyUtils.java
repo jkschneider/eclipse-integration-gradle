@@ -17,6 +17,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.gradle.tooling.ModelBuilder;
 import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.GradleModuleVersion;
@@ -95,52 +96,64 @@ public class IvyUtils {
 	};
 	
 	static class IvyLibraryEquivalency {
-		Map<HierarchicalEclipseProject, Collection<? extends ExternalDependency>> ivyLibraryAndTransitivesByProject = new HashMap<HierarchicalEclipseProject, Collection<? extends ExternalDependency>>();
-		Map<HierarchicalEclipseProject, ExternalDependency> ivyLibraryByProject = new HashMap<HierarchicalEclipseProject, ExternalDependency>();
+		Map<String, Collection<? extends ExternalDependency>> ivyLibraryAndTransitivesByProject = new HashMap<String, Collection<? extends ExternalDependency>>();
+		Map<String, ExternalDependency> ivyLibraryByProject = new HashMap<String, ExternalDependency>();
 		
-        public Collection<? extends ExternalDependency> getLibraryAndTransitives(HierarchicalEclipseProject project) {
-			if(!ivyLibraryAndTransitivesByProject.containsKey(project))
+        public Collection<? extends ExternalDependency> getLibraryAndTransitives(HierarchicalEclipseProject project) {        	
+			if(!ivyLibraryAndTransitivesByProject.containsKey(project.getName()))
 				computeLibrariesForCache(project, new NullProgressMonitor());
-			Collection<? extends ExternalDependency> libAndTrans = ivyLibraryAndTransitivesByProject.get(project);
+			Collection<? extends ExternalDependency> libAndTrans = ivyLibraryAndTransitivesByProject.get(project.getName());
 			return libAndTrans == null ? new ArrayList<ExternalDependency>() : libAndTrans;
         }
         
         public ExternalDependency getLibrary(HierarchicalEclipseProject project, IProgressMonitor monitor) {
-			if(!ivyLibraryByProject.containsKey(project))
+			if(!ivyLibraryByProject.containsKey(project.getName()))
 				computeLibrariesForCache(project, monitor);
-			return ivyLibraryByProject.get(project);
+			return ivyLibraryByProject.get(project.getName());
         }
         
         private void computeLibrariesForCache(HierarchicalEclipseProject project, IProgressMonitor monitor) {
 			try {
-				ensureWorkspaceProjectResolverContentExists(GradleCore.create(project));
 				
-				ProjectConnection projectConnection = GradleModelProvider.getGradleConnector(
+				GradleProject gradleProject = GradleCore.create(project);
+				
+				ensureWorkspaceProjectResolverContentExists(gradleProject);
+				
+				ProjectConnection workspaceResolvedProject = GradleModelProvider.getGradleConnector(
 						new File(workspaceProjectResolverRoot(project) + "/workspace-resolver"),
 						monitor);
-				if(projectConnection == null) {
-					ivyLibraryAndTransitivesByProject.put(project, new ArrayList<ExternalDependency>());
+				
+				if(workspaceResolvedProject == null) {
+					ivyLibraryAndTransitivesByProject.put(project.getName(), new ArrayList<ExternalDependency>());
 					return;
 				}
 				
-				EclipseProject model = projectConnection.getModel(EclipseProject.class);
-				ivyLibraryAndTransitivesByProject.put(project, model.getClasspath());
+				ModelBuilder<EclipseProject> builder = workspaceResolvedProject.model(EclipseProject.class);
+				gradleProject.configureOperation(builder, null);			
+				
+				EclipseProject model = builder.get();
+				ivyLibraryAndTransitivesByProject.put(project.getName(), model.getClasspath());
 				
 				// the fake gradle project will contain other deps (e.g. junit) in addition to the library representing the project
-				GradleModuleVersion projectMV = gradleModuleVersion(GradleCore.create(project));
+				GradleModuleVersion projectMV = gradleModuleVersion(gradleProject);
 				for (ExternalDependency modelDep : model.getClasspath()) {
 					GradleModuleVersion depMV = modelDep.getGradleModuleVersion();
 					if(projectMV.getGroup().equals(depMV.getGroup()) && projectMV.getName().equals(depMV.getName())) {
-						ivyLibraryByProject.put(project, modelDep);
+						ivyLibraryByProject.put(project.getName(), modelDep);
 					}
 				}
 			} catch (Throwable t) {
 				GradleCore.log(t);
 			}
         }
+
+		public synchronized void clear() {
+			ivyLibraryAndTransitivesByProject.clear();
+			ivyLibraryByProject.clear();
+		}
 	};
 	
-	private static IvyLibraryEquivalency libraryEquivalency = new IvyLibraryEquivalency();
+	private final static IvyLibraryEquivalency libraryEquivalency = new IvyLibraryEquivalency();
 	
 	public static GradleModuleVersion gradleModuleVersion(GradleProject project) {
 		return moduleVersionCache.get(project);
@@ -245,5 +258,9 @@ public class IvyUtils {
 
 	private static String buildDependenciesTask(GradleModuleVersion compileDep) {
 		return "dependencies { compile '" + compileDep.getGroup() + ":" + compileDep.getName() + ":+' }";
+	}
+
+	public static void clearDependencyCache() {
+		libraryEquivalency.clear();
 	}
 }
